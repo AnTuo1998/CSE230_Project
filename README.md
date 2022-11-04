@@ -1,6 +1,6 @@
-# CSE230 Project: Brick Breaker Game
+# *22Fall CSE230 Project*: Brick Breaker Game
 
-**Group Member**: Hanlin Teng Spencer Du Wenzao Cui Yunshu Zhou
+**Group Member**: Hanlin Teng, Spencer Du, Wenzao Cui, Yunshu Zhou
 
 ## Proposal
 
