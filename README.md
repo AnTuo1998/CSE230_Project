@@ -11,7 +11,7 @@ We plan to build a brick breaker game where players can smash overhead walls wit
 <!-- ![Screenshot](pictures/brick-breaker.jpg) -->
 
 
-<center><img width=80% src="pictures/brick-breaker.jpg"></img></center>
+<center><img width=60% src="pictures/brick-breaker.jpg"></img></center>
 
 
 ### Goal/Features
