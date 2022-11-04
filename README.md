@@ -39,8 +39,8 @@ We want to build a user-friendly homepage and other game pages that allow player
 ### Timeline
 
 - 11.9 proposal submission
-- xx.xx Milestone1: basic functionality
-- xx.xx Milestone2: add-ons
+- 11.19 Milestone1: basic functionality
+- 12.3 Milestone2: add-ons
 - 12.9 final presentation
 
 ### References
