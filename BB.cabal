@@ -1,0 +1,57 @@
+name:                BB
+version:             0.0
+category:            Web
+build-type:          Simple
+cabal-version:       >=1.10
+extra-source-files:  README.md
+
+library
+  hs-source-dirs:      src
+  exposed-modules:     BB
+                     , UI.Home
+                     , UI.Game
+  build-depends:       base >= 4.7 && < 5
+                     , brick
+                     , containers
+                     , tuple
+                     , lens
+                     , extra
+                     , linear
+                     , random
+                     , transformers
+                     , vty
+  default-language:    Haskell2010
+
+executable BB
+  hs-source-dirs:      app
+  main-is:             Main.hs
+  ghc-options:         -Wall -threaded -rtsopts -with-rtsopts=-N
+  build-depends:       base >= 4.7 && < 5
+                     , directory
+                     , filepath
+                     , containers
+                     , linear
+                     , split
+                     , BB
+                     , tuple
+                     , lens
+  default-language:    Haskell2010
+
+test-suite BB-test
+  type: exitcode-stdio-1.0
+  main-is: test.hs
+  hs-source-dirs: test
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:   base >= 4.7 && < 5
+                  , brick
+                  , containers
+                  , lens
+                  , extra
+                  , linear
+                  , random
+                  , transformers
+                  , vty
+                  , HUnit
+                  , BB
+
+  default-language: Haskell2010
