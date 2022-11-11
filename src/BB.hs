@@ -29,6 +29,7 @@ module BB
     pureBricks,
     hardBricks,
     balls,
+    buffs,
     level,
     highestScore,
     moveCoord,
@@ -40,12 +41,13 @@ module BB
   )
 where
 
+import Buff
 import Control.Applicative ((<|>))
-import Control.Lens hiding ((:<), (:>), (<|), (|>))
+import Control.Lens ( (&), (.~), (^.), (%~), makeLenses )
 import Control.Monad (guard)
 import Control.Monad.Extra (orM)
-import Control.Monad.Trans.Maybe
-import Control.Monad.Trans.State
+import Control.Monad.Trans.Maybe ()
+import Control.Monad.Trans.State ()
 import Data.List
 import Data.Maybe (fromMaybe, isNothing)
 import Data.Tuple.Select (Sel1 (sel1), Sel2 (sel2), Sel3 (sel3))
@@ -118,6 +120,7 @@ data Game = Game
     _hardBricks :: Seq BrickLoc,
     -- | all balls 
     _balls :: Seq BallState,
+    _buffs :: Seq BuffState,
     _timeLimit :: Int,
     _progress :: Int,
     _level :: Int,
@@ -149,7 +152,7 @@ step :: Game -> Game
 step g = if g^.status == Playing then stepHelper g else g
 
 stepHelper:: Game -> Game
-stepHelper = anotherChance . dropBall . hitBricks . bounceWalls . setGameWin. setGameOver . advanceTime
+stepHelper = setGameWin. setGameOver . anotherChance . moveBuffs . dropBall . hitBricks . bounceWalls . advanceTime
 
 advanceTime :: Game -> Game
 advanceTime g = g & progress .~ ((g ^. progress) + 1)
@@ -293,6 +296,12 @@ bounceWalls g = g & balls .~ newBalls
     runBall b = b & ballCoord .~ nextPos (b^.hDir) (b^.vDir) (b^.ballCoord)
     newBalls = fmap (runBall . changeDirs) (g ^. balls)
 
+moveBuffs :: Game -> Game
+moveBuffs g = g & buffs .~ newBuffs
+  where   
+    moveBuff b = b & buffCoord .~ moveCoord 1 South (b^.buffCoord)
+    newBuffs = fmap moveBuff (g ^. buffs)
+
 initGame :: InitConfig -> IO Game
 initGame initConf =
   return Game
@@ -305,7 +314,8 @@ initGame initConf =
             _hardBricks = initConf ^. initHardBricks,
             -- [V2 1 15, V2 9 19]
             _balls = initBalls (div width 2),
-            -- _ballDirs = S.fromList [(East, North)],
+            _buffs =   initBuff,        
+             -- _ballDirs = S.fromList [(East, North)],
             _timeLimit = initConf^.initTimeLimit, -- in ticks
             _progress = 0,
             _level = initConf^.initLevel,
@@ -313,10 +323,11 @@ initGame initConf =
             _lifeCount = 2
           }
 
-initBalls playerX = S.fromList [BallState{_ballCoord =V2 playerX 1, 
+initBalls playerX = S.fromList [BallState{_ballCoord =V2 playerCenter 1, 
                                     _hDir=East,
                                     _vDir=North,
-                                    _fireCountDown=0}, BallState{_ballCoord =V2 playerX 1, 
+                                    _fireCountDown=0}, BallState{_ballCoord =V2 playerCenter 1, 
                                     _hDir=West,
                                     _vDir=North,
                                     _fireCountDown=0}]
+                  where playerCenter = playerX + div playerLen 2

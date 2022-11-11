@@ -32,6 +32,7 @@ import Brick
     withBorderStyle,
     (<+>),
   )
+import Buff
 import qualified Brick.AttrMap as A
 import Brick.BChan (newBChan, writeBChan)
 import qualified Brick.Main as M
@@ -79,7 +80,7 @@ data Tick = Tick
 -- if we call this "Name" now.
 type Name = ()
 
-data Cell = Player | Empty | Ball | PureBrick | HardBrick
+data Cell = Player | Empty | Ball | PureBrick | HardBrick | FireBall
 
 -- App definition
 
@@ -174,6 +175,7 @@ drawGrid g =
     cellsInRow y = [drawCoord (V2 x y) | x <- [0 .. width -1]]
     drawCoord = drawCell . cellAt
     cellAt c@(V2 x y)
+      | c `elem` buffsToCoords (g ^. buffs) = FireBall
       | y == 0 && withinPlayer c (g^.player) = Player
       | c `elem` ballsToCoords (g ^. balls) = Ball
       | foldl (||) False (fmap (isHardBrick c) (g ^. pureBricks))  = PureBrick
@@ -184,6 +186,10 @@ drawGrid g =
 ballsToCoords :: Seq BallState -> Seq (V2 Int)
 ballsToCoords = fmap f
   where f b = b^.ballCoord
+
+buffsToCoords :: Seq BuffState -> Seq (V2 Int)
+buffsToCoords = fmap f
+  where f b = b^.buffCoord
 --
 
 drawTimeBar :: Game -> Widget Name
@@ -206,6 +212,7 @@ drawCell Empty = withAttr emptyAttr cw
 drawCell Ball = withAttr ballsAttr ballw
 drawCell PureBrick = withAttr pureBricksAttr cw
 drawCell HardBrick = withAttr hardBricksAttr cw
+drawCell FireBall = withAttr ballsAttr buffw
 
 drawHelp :: Widget Name
 drawHelp =
@@ -225,6 +232,9 @@ cw = str "  "
 
 ballw :: Widget Name
 ballw = str "⬤ "
+
+buffw :: Widget Name
+buffw = str "⬤ "
 
 theMap :: AttrMap
 theMap =
