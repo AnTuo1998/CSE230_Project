@@ -53,31 +53,6 @@ import Brick.Widgets.ProgressBar
     ( progressBar, progressCompleteAttr )
 import qualified Brick.Widgets.ProgressBar as P
 import BB
-    ( InitConfig,
-      GameStatus(..),
-      Direction(West, East),
-      Game,
-      balls,
-      hardBricks,
-      highestScore,
-      initConfig,
-      level,
-      lifeCount,
-      player,
-      pureBricks,
-      score,
-      status,
-      height,
-      width,
-      pause,
-      step,
-      withinPlayer,
-      movePlayer,
-      isHardBrick,
-      initGame,
-      progress,
-      timeLimit,
-      initTickInterval )
 import Control.Concurrent (forkIO, threadDelay)
 import Control.Lens ((^.), (&), (.~))
 import Control.Monad (forever, void)
@@ -206,9 +181,9 @@ drawGrid g =
       | otherwise = Empty
 
 -- util
-ballsToCoords :: Seq (b1, b2, c) -> Seq b1
-ballsToCoords = S.mapWithIndex f
-  where f _ (b, _, _) = b
+ballsToCoords :: Seq BallState -> Seq (V2 Int)
+ballsToCoords = fmap f
+  where f b = b^.ballCoord
 --
 
 drawTimeBar :: Game -> Widget Name

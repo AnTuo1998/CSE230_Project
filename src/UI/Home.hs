@@ -31,7 +31,7 @@ ui =
                 vBox
                   [ str "Brick Breaker!"
                   ],
-              padTop (Pad 5) $ C.hCenter $ str "Choose Level 0-9"
+              padTop (Pad 5) $ C.hCenter $ str "Choose Level 0-5"
             ]
 
 handleEvent :: Maybe Int -> BrickEvent () e -> EventM () (Next (Maybe Int))
