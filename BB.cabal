@@ -10,6 +10,9 @@ library
   exposed-modules:     BB
                      , UI.Home
                      , UI.Game
+                     , UI.Level
+                     , UI.Ranking
+                     , UI.Help
   build-depends:       base >= 4.7 && < 5
                      , brick
                      , containers

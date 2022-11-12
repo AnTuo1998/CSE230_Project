@@ -3,7 +3,10 @@ module Main where
 import BB
 import System.IO (hClose, hPutStrLn, openFile, IOMode(WriteMode) )
 import UI.Game (playGame)
-import UI.Home (startHome)
+import UI.Home (startHome, getPage)
+import UI.Ranking (showRanking)
+import UI.Help (showHelp)
+import UI.Level (chooseLevel)
 import Data.Sequence (Seq (..))
 import qualified Data.Sequence as S
 import Linear.V2 (V2 (..))
@@ -14,20 +17,30 @@ import Control.Lens ((&), (.~), element)
 
 main :: IO ()
 main = do
-  level' <- startHome
-  prevScores <- readScores
-  map' <- readMap
-  tickInterval <- readInterval level'
-  g <- playGame (let intervalFloat = fromIntegral tickInterval :: Float
-                    in InitConfig 
-                    { _initLevel=level',
-                      _initHighestScore=prevScores !! level',
-                      _initPureBricks=sel1 map',
-                      _initHardBricks=sel2 map',
-                      _initTimeLimit=floor $ 240000000.0/intervalFloat,
-                      _initTickInterval=tickInterval
-                    })
-  saveResults (_score g) (_level g)
+  page <- startHome
+  case getPage page of 
+    1 -> do
+      level' <- chooseLevel
+      prevScores <- readScores
+      map' <- readMap
+      tickInterval <- readInterval level'
+      g <- playGame (let intervalFloat = fromIntegral tickInterval :: Float
+                        in InitConfig 
+                        { _initLevel=level',
+                          _initHighestScore=prevScores !! level',
+                          _initPureBricks=sel1 map',
+                          _initHardBricks=sel2 map',
+                          _initTimeLimit=floor $ 240000000.0/intervalFloat,
+                          _initTickInterval=tickInterval
+                        })
+      saveResults (_score g) (_level g)
+    2 -> do 
+      _ <- showRanking
+      main
+    3 -> do 
+      _ <- showHelp
+      main
+    _ -> undefined 
 
 readMap :: IO (Seq BrickLoc, Seq BrickLoc)
 readMap = do

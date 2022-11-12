@@ -1,5 +1,5 @@
 module UI.Home
-  ( startHome,
+  ( startHome, getPage
   )
 where
 
@@ -10,37 +10,106 @@ import Brick.Widgets.Center (hCenter)
 import qualified Brick.Widgets.Center as C
 import qualified Graphics.Vty as V
 import System.Exit (exitSuccess)
+import System.IO
+import Graphics.Vty.Attributes (withStyle)
 
-app :: App (Maybe Int) e ()
+-- data types
+type ResourceName = String
+data HomeState = HomeState {
+  page :: Int, -- 0: default, 1: start, 2: ranking, 3: help
+  menu :: MenuCursor String
+}
+
+data MenuCursor a = MenuCursor {
+  prev :: [a],
+  cur :: a,
+  next :: [a]
+}
+
+-- make cursor
+makeMenuCursor :: [a] -> MenuCursor a
+makeMenuCursor (x:xs) = MenuCursor {prev = [], cur = x, next = xs}
+makeMenuCursor []= error "menu is not empty, shouldn't reach here"
+
+selectNext :: MenuCursor a -> MenuCursor a
+selectNext cs = case next cs of
+  [] -> cs
+  x:xs -> MenuCursor {prev = curX:prevX, cur = x, next = xs}
+  where
+    curX = cur cs
+    prevX = prev cs
+
+
+selectPrev :: MenuCursor a -> MenuCursor a
+selectPrev cs = case prev cs of
+  [] -> cs
+  x:xs -> MenuCursor {prev = xs, cur = x, next = curX:nextX}
+  where
+    curX = cur cs
+    nextX = next cs
+
+getPage :: HomeState -> Int
+getPage = page
+
+-- app
+app :: App HomeState e ResourceName
 app =
   App
-    { appDraw = const [ui],
+    { appDraw = drawHome,
       appHandleEvent = handleEvent,
       appStartEvent = return,
-      appAttrMap = const $ attrMap V.defAttr [],
+      appAttrMap = const $ attrMap V.defAttr [(attrName "selected", fg V.yellow `withStyle` V.bold)],
       appChooseCursor = neverShowCursor
     }
 
-ui :: Widget ()
-ui =
-  padLeft (Pad 21) $ padRight (Pad 23) $ C.center $ vLimit 19 $ hLimit 70 $
+buildInitState :: IO HomeState
+buildInitState = do
+  records <- readFile "src/record.txt"
+  return HomeState {page = 0, menu = makeMenuCursor ["Start", "Help", "Ranking", "Quit"]}
+
+drawHome :: HomeState -> [Widget ResourceName]
+drawHome st =
+  [padLeft (Pad 21) $ padRight (Pad 23) $ C.center $ vLimit 22 $ hLimit 70 $
     withBorderStyle BS.unicodeBold $
       B.borderWithLabel (str "CSE230 Presents") $ C.center $
-          vBox
-            [ C.hCenter $
+      vBox [ C.hCenter $
                 vBox
-                  [ str "Brick Breaker!"
-                  ],
-              padTop (Pad 5) $ C.hCenter $ str "Choose Level 0-9"
+                  [ C.hCenter $ str " ______  ______  __  ______  __  __\n/\\  == \\/\\  == \\/\\ \\/\\  ___\\/\\ \\/ /\n\\ \\  __<\\ \\  __<\\ \\ \\ \\ \\___\\ \\  _\"-.\n \\ \\_____\\ \\_\\ \\_\\ \\_\\ \\_____\\ \\_\\ \\_\\\n  \\/_____/\\/_/ /_/\\/_/\\/_____/\\/_/\\/_/",
+                  C.hCenter $ str " ______  ______  ______  ______  __  __  ______  ______\n/\\  == \\/\\  == \\/\\  ___\\/\\  __ \\/\\ \\/ / /\\  ___\\/\\  == \\\n\\ \\  __<\\ \\  __<\\ \\  __\\\\ \\  __ \\ \\  _\"-\\ \\  __\\\\ \\  __<\n \\ \\_____\\ \\_\\ \\_\\ \\_____\\ \\_\\ \\_\\ \\_\\ \\_\\ \\_____\\ \\_\\ \\_\\\n  \\/_____/\\/_/ /_/\\/_____/\\/_/\\/_/\\/_/\\/_/\\/_____/\\/_/ /_/"],
+                padTop (Pad 1) $ C.hCenter $ str "Welcome :)",
+                padTop (Pad 1) $ C.hCenter $ vBox $ concat [map (drawEntry False) $ reverse $ prev m,
+                      [drawEntry True (cur m)],
+                      map (drawEntry False) $ next m],
+                padTop (Pad 1) $ C.hCenter $ str "Press enter to select"]
             ]
+  where
+    m = menu st
 
-handleEvent :: Maybe Int -> BrickEvent () e -> EventM () (Next (Maybe Int))
-handleEvent n (VtyEvent (V.EvKey (V.KChar 'q') _)) = halt n
-handleEvent n (VtyEvent (V.EvKey (V.KChar d) [])) =
-  if d `elem` ['0' .. '9']
-    then halt $ Just (read [d])
-    else continue n
-handleEvent n _ = continue n
+drawEntry :: Bool -> String -> Widget n
+drawEntry b s = if b then withAttr (attrName "selected") (str s) else str s
 
-startHome :: IO Int
-startHome = defaultMain app Nothing >>= maybe exitSuccess return
+handleEvent :: HomeState -> BrickEvent ResourceName e -> EventM ResourceName (Next HomeState)
+handleEvent s e =
+  case e of
+    VtyEvent vtye ->
+      case vtye of
+        V.EvKey V.KDown _ ->
+          continue $ s {menu = selectNext (menu s)}
+        V.EvKey V.KUp _ ->
+          continue $ s {menu = selectPrev (menu s)}
+        V.EvKey V.KEnter _ -> case selected of
+          "Start" -> halt s {page = 1}
+          "Ranking" -> halt s {page = 2}
+          "Help" -> halt s {page = 3}
+          "Quit" -> halt s
+          _ -> error "should not reach here"
+          where
+            selected = cur $ menu s
+        _ -> continue s
+    _ -> continue s
+
+startHome :: IO HomeState
+startHome = do
+  initState <- buildInitState
+  finalState <- defaultMain app initState
+  if page finalState == 0 then exitSuccess else return finalState
