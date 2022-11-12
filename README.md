@@ -1,3 +1,10 @@
+# Build
+
+```
+stack build
+stack exec BB
+```
+
 # Todos
 
 1. fancier UI
