@@ -28,7 +28,7 @@ import qualified Data.Sequence as S
 import Linear.V2 (V2 (..), _x, _y)
 import System.IO
 
-data BuffType = FireBall | Others deriving (Eq, Show)
+data BuffType = FireBall | Split deriving (Eq, Show)
 
 data BuffState = BuffState 
     {
