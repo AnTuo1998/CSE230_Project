@@ -80,7 +80,7 @@ data Tick = Tick
 -- if we call this "Name" now.
 type Name = ()
 
-data Cell = Player | Empty | Ball | PureBrick | HardBrick | FireBall
+data Cell = Player | Empty | Ball | PureBrick | HardBrick | FireBallBuff | FireBall_
 
 -- App definition
 
@@ -175,11 +175,11 @@ drawGrid g =
     cellsInRow y = [drawCoord (V2 x y) | x <- [0 .. width -1]]
     drawCoord = drawCell . cellAt
     cellAt c@(V2 x y)
-      | c `elem` buffsToCoords (g ^. buffs) = FireBall
+      | c `elem` buffsToCoords (g ^. buffs) = FireBallBuff
       | y == 0 && withinPlayer c (g^.player) = Player
-      | c `elem` ballsToCoords (g ^. balls) = Ball
       | foldl (||) False (fmap (isHardBrick c) (g ^. pureBricks))  = PureBrick
       | foldl (||) False (fmap (isHardBrick c) (g ^. hardBricks)) = HardBrick
+      | c `elem` ballsToCoords (g ^. balls) = if g^.fireCountDown > 0 then FireBall_ else Ball 
       | otherwise = Empty
 
 -- util
@@ -212,7 +212,8 @@ drawCell Empty = withAttr emptyAttr cw
 drawCell Ball = withAttr ballsAttr ballw
 drawCell PureBrick = withAttr pureBricksAttr cw
 drawCell HardBrick = withAttr hardBricksAttr cw
-drawCell FireBall = withAttr ballsAttr buffw
+drawCell FireBallBuff = withAttr fireBallBuffAttr cw
+drawCell FireBall_ = withAttr fireBallAttr ballw
 
 drawHelp :: Widget Name
 drawHelp =
@@ -234,7 +235,8 @@ ballw :: Widget Name
 ballw = str "⬤ "
 
 buffw :: Widget Name
-buffw = str "⬤ "
+buffw = str "DF"
+  -- str "㈫"
 
 theMap :: AttrMap
 theMap =
@@ -245,7 +247,9 @@ theMap =
       (pureBricksAttr, V.white `on` V.white),
       (hardBricksAttr, V.yellow `on` V.yellow),
       (ballsAttr, fg V.red  `V.withStyle` V.bold),
-      (timeBarAttr, V.black `on` V.blue)
+      (timeBarAttr, V.black `on` V.blue),
+      (fireBallBuffAttr, V.green `on` V.green),
+      (fireBallAttr, fg V.magenta  `V.withStyle` V.bold)
     ]
 
 noticeStringAttr :: AttrName
@@ -268,3 +272,8 @@ hardBricksAttr = "hardBricks"
 timeBarAttr :: AttrName
 timeBarAttr = "timeBar"
 
+fireBallBuffAttr :: AttrName 
+fireBallBuffAttr = "fireBallBuff"
+
+fireBallAttr :: AttrName 
+fireBallAttr = "fireBall"

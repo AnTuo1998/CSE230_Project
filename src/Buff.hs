@@ -4,10 +4,12 @@
 
 module Buff
 (
-BuffType,
+BuffType(..),
 BuffState,
 buffCoord,
-initBuff
+initBuff,
+buffT,
+newBuffFac
 )
 where
 
@@ -37,4 +39,6 @@ data BuffState = BuffState
 
 makeLenses ''BuffState
 
-initBuff = S.fromList [BuffState{_buffCoord=V2 10 27, _buffT=FireBall}]
+-- initBuff = S.fromList [BuffState{_buffCoord=V2 10 3, _buffT=FireBall}]
+initBuff = S.empty
+newBuffFac coord t = S.fromList [BuffState{_buffCoord=coord, _buffT=t}]

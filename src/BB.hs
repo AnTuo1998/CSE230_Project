@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 
 module BB
   ( initGame,
@@ -38,6 +39,7 @@ module BB
     withinPlayer,
     withinHardBrick,
     isHardBrick,
+    fireCountDown,
   )
 where
 
@@ -55,6 +57,7 @@ import Data.Sequence (Seq (..), (<|))
 import qualified Data.Sequence as S
 import Linear.V2 (V2 (..), _x, _y)
 import System.IO
+import Data.Foldable (toList)
 
 -- Types
 
@@ -79,20 +82,20 @@ data GameStatus
   | Playing
   deriving (Eq, Show)
 
+
 data BallState = BallState
   {
     _ballCoord :: Coord,
     _hDir :: Direction,
-    _vDir :: Direction,
-    _fireCountDown :: Int
-  } 
+    _vDir :: Direction
+  }
   deriving (Show)
 
 makeLenses ''BallState
 
 type BrickLoc = Coord
 
-data InitConfig = InitConfig 
+data InitConfig = InitConfig
   {
     _initLevel :: Int,
     _initHighestScore :: Int,
@@ -105,7 +108,7 @@ data InitConfig = InitConfig
 
 makeLenses ''InitConfig
 data Game = Game
-  { 
+  {
     _initConfig :: InitConfig,
     -- | Player as a sequence of points in N2
     _player :: Player,
@@ -124,7 +127,9 @@ data Game = Game
     _timeLimit :: Int,
     _progress :: Int,
     _level :: Int,
-    _highestScore :: Int
+    _highestScore :: Int,
+    -- | the fireball buff
+    _fireCountDown :: Int
   }
   deriving (Show)
 
@@ -152,10 +157,13 @@ step :: Game -> Game
 step g = if g^.status == Playing then stepHelper g else g
 
 stepHelper:: Game -> Game
-stepHelper = setGameWin. setGameOver . anotherChance . moveBuffs . dropBall . hitBricks . bounceWalls . advanceTime
+stepHelper = setGameWin . setGameOver . anotherChance . moveBuffs . actBuffs . clearBall . hitBricks . fireHit. bounceWalls . advanceTime . expireBuff
 
 advanceTime :: Game -> Game
 advanceTime g = g & progress .~ ((g ^. progress) + 1)
+
+expireBuff :: Game -> Game
+expireBuff g = g & fireCountDown %~ subtract 1
 
 setGameWin :: Game -> Game
 setGameWin g = if null $ g^.pureBricks then g & status .~ Win else g
@@ -186,13 +194,13 @@ bouncePlayer :: V2 Int -> BallState -> BallState
 bouncePlayer player b = let y = b ^.ballCoord._y
                             d2 = b^.vDir
    in if y == 1 && d2 == South && withinPlayer (b^.ballCoord) player then oppositeBallVert b else b
-   
+
 withinPlayer :: V2 Int -> V2 Int -> Bool
 withinPlayer (V2 bx _) (V2 px _) = bx >= px && bx <= (px + playerLen)
 
 -- ball_coord, brick_boord
 withinHardBrick :: V2 Int -> V2 Int -> Bool
-withinHardBrick (V2 bx by) (V2 hx hy) = bx >= hx && bx <= (hx + brickLen)
+withinHardBrick (V2 bx by) (V2 hx hy) = bx >= hx && bx < (hx + brickLen)
 
 isInBound :: Coord -> Bool
 isInBound (V2 x y) = 0 <= x && x < width && 0 <= y
@@ -213,22 +221,22 @@ movePlayer dir g =
 
 isHardBrick xy@(V2 x y) hb@(V2 hx hy) = y == hy && withinHardBrick xy hb
 
-dropBall :: Game -> Game
-dropBall g = g & balls .~ newBalls 
+clearBall :: Game -> Game
+clearBall g = g & balls .~ newBalls
   where newBalls = S.filter (\b -> b^.ballCoord._y >= 0) (g^.balls)
 
 anotherChance :: Game -> Game
-anotherChance g = if null $ g^.balls then g & lifeCount %~ subtract 1 
+anotherChance g = if null $ g^.balls then g & lifeCount %~ subtract 1
                                             & balls .~ newBalls
                                             & status .~ Paused
                                             else g
-  where 
-   
+  where
+
     newBalls = initBalls (g^.player._x)
 
 isHittingDiag :: BrickLoc -> BallState -> Maybe (BallState, BrickLoc)
 isHittingDiag brick@(V2 hx hy) bst = if (by == hy - 1 || by == hy + 1) &&
-                                                                (bx == hx - 1 || bx == hx + 1 + brickLen)
+                                                                (bx == hx - 1 || bx == hx + brickLen)
                                                                 && isHardBrick (nextPos (bst^.hDir) (bst^.vDir) (bst^.ballCoord)) brick
                                                          then Just (oppositeBallVert bst, brick)
                                                          else Nothing
@@ -244,8 +252,15 @@ isHittingVert brick@(V2 _ hy) bst = if (by == hy - 1 || by == hy + 1) && withinH
         bx = bst^.ballCoord._x
 
 isHittingHori :: BrickLoc -> BallState -> Maybe (BallState, BrickLoc)
-isHittingHori brick@(V2 hx hy) bst = if by == hy && (bx == hx - 1 || bx == hx + 1 + brickLen)
+isHittingHori brick@(V2 hx hy) bst = if by == hy && (bx == hx - 1 || bx == hx + brickLen)
                                                          then Just (oppositeBallHori bst, brick)
+                                                         else Nothing
+  where by = bst^.ballCoord._y
+        bx = bst^.ballCoord._x
+
+isInside :: BrickLoc -> BallState -> Maybe (BallState, BrickLoc)
+isInside brick@(V2 hx hy) bst = if isHardBrick (bst^.ballCoord) brick
+                                                         then Just (bst, brick)
                                                          else Nothing
   where by = bst^.ballCoord._y
         bx = bst^.ballCoord._x
@@ -277,30 +292,74 @@ bouncePureBricks bricks ball = let ret = bounceBricks bricks ball
                                  Nothing -> (ball, V2 0 0, 0)
                                  Just (ball', brick) -> (ball', brick, reward)
 
-nextPos d1 d2 = moveCoord 1 d2. moveCoord 1 d1
+fireBounceBricks :: Seq Coord -> BallState -> Maybe (BallState, BrickLoc)
+fireBounceBricks S.Empty bst = Nothing
+fireBounceBricks bricks ball = batchCheck isInside bricks ball
 
-hitBricks :: Game -> Game
-hitBricks g = g & balls .~ newBalls & score .~ newScore & pureBricks .~ newBricks
+fireBouncePureBricks :: Seq BrickLoc -> BallState -> (BallState, BrickLoc, Int)
+fireBouncePureBricks bricks ball = let ret = fireBounceBricks bricks ball
+                                 in case ret of
+                                 Nothing -> (ball, V2 0 0, 0)
+                                 Just (ball', brick) -> (ball', brick, reward)
+
+fireHit :: Game -> Game
+fireHit g = g & score .~ newScore & pureBricks .~ newBricks
   where
-    results = fmap (bouncePureBricks (g^.pureBricks)) (g ^. balls)
-    -- newBalls = fmap sel1 results
-    newBalls = g^.balls
+    results = fmap (fireBouncePureBricks (g^.pureBricks)) (g ^. balls)
     newScore = foldl (+) (g^.score) (fmap sel3 results)
     bricksToDelete = fmap sel2 results
     newBricks = S.filter (`notElem` bricksToDelete) (g^.pureBricks)
 
+nextPos :: Direction -> Direction -> Coord -> Coord
+nextPos d1 d2 = moveCoord 1 d2. moveCoord 1 d1
+
+hitBricks :: Game -> Game
+hitBricks g = g & balls .~ newBalls & score .~ newScore & pureBricks .~ newBricks & buffs %~ joinSeq newBuff
+  where
+    results = fmap (bouncePureBricks (g^.pureBricks)) (g ^. balls)
+    newBalls = if g^.fireCountDown > 0 then g^.balls else fmap sel1 results
+    newScore = foldl (+) (g^.score) (fmap sel3 results)
+    bricksToDelete = S.filter (\b -> b /= V2 0 0) (fmap sel2 results)
+    newBuff = if null bricksToDelete then S.empty else dropBuff g (head $ toList bricksToDelete)
+    newBricks = S.filter (`notElem` bricksToDelete) (g^.pureBricks)
+
+joinSeq :: Seq a -> Seq a -> Seq a
+joinSeq x y = S.fromList $ toList x ++ toList y
+
+-- should (can be made random) select a trigger (scores) to drop
+dropBuff :: Game -> BrickLoc -> Seq BuffState
+dropBuff g brick = newBuff
+  where 
+    newBuff = S.empty `joinSeq` newFireBall
+    newFireBall = if g^.score == 30 then newBuffFac dropCoord FireBall else S.fromList [] 
+    dropCoord = moveCoord (div brickLen 2) East brick
+
 bounceWalls :: Game -> Game
 bounceWalls g = g & balls .~ newBalls
   where
-    changeDirs ball = bounceHardBricks (g ^. hardBricks). bouncePlayer (g ^. player) . bounceHori . bounceVert $ ball
+    changeDirs ball = bounceHardBricks (g ^. hardBricks) . bouncePlayer (g ^. player) . bounceHori . bounceVert $ ball
     runBall b = b & ballCoord .~ nextPos (b^.hDir) (b^.vDir) (b^.ballCoord)
     newBalls = fmap (runBall . changeDirs) (g ^. balls)
 
 moveBuffs :: Game -> Game
-moveBuffs g = g & buffs .~ newBuffs
-  where   
+moveBuffs g = if (g^.progress) `mod` 3 == 0 then g & buffs .~ newBuffs else g
+  where
     moveBuff b = b & buffCoord .~ moveCoord 1 South (b^.buffCoord)
     newBuffs = fmap moveBuff (g ^. buffs)
+
+actBuffs :: Game -> Game
+actBuffs g = newG
+  where
+    actBuff bs g = if null bs then g else
+      case head bs^.buffT of
+          FireBall -> actFireBall g
+    liveBuffs =  S.filter (\b -> b^.buffCoord._y >= 0) (g ^. buffs)
+    -- catchedBuff should be no more than 1 element
+    catchedBuff = toList $ S.filter (\b -> b^.buffCoord._y == 0 && withinPlayer (b^.buffCoord) (g^.player)) liveBuffs
+    newG = actBuff catchedBuff (g & buffs .~ liveBuffs)
+
+actFireBall :: Game -> Game
+actFireBall g = g & fireCountDown .~ 250
 
 initGame :: InitConfig -> IO Game
 initGame initConf =
@@ -314,20 +373,19 @@ initGame initConf =
             _hardBricks = initConf ^. initHardBricks,
             -- [V2 1 15, V2 9 19]
             _balls = initBalls (div width 2),
-            _buffs =   initBuff,        
+            _buffs =   initBuff,
              -- _ballDirs = S.fromList [(East, North)],
             _timeLimit = initConf^.initTimeLimit, -- in ticks
             _progress = 0,
             _level = initConf^.initLevel,
             _highestScore = initConf^.initHighestScore,
-            _lifeCount = 2
+            _lifeCount = 2,
+            _fireCountDown = 0
           }
 
-initBalls playerX = S.fromList [BallState{_ballCoord =V2 playerCenter 1, 
+initBalls playerX = S.fromList [BallState{_ballCoord =V2 playerCenter 1,
                                     _hDir=East,
-                                    _vDir=North,
-                                    _fireCountDown=0}, BallState{_ballCoord =V2 playerCenter 1, 
+                                    _vDir=North}, BallState{_ballCoord =V2 playerCenter 1,
                                     _hDir=West,
-                                    _vDir=North,
-                                    _fireCountDown=0}]
+                                    _vDir=North}]
                   where playerCenter = playerX + div playerLen 2

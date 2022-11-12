@@ -11,12 +11,13 @@ import Data.List(intercalate)
 import Data.List.Split(splitOn)
 import Data.Tuple.Select (Sel1 (sel1), Sel2 (sel2))
 import Control.Lens ((&), (.~), element)
+import Text.Printf (printf)
 
 main :: IO ()
 main = do
   level' <- startHome
   prevScores <- readScores
-  map' <- readMap
+  map' <- readMap level'
   tickInterval <- readInterval level'
   g <- playGame (let intervalFloat = fromIntegral tickInterval :: Float
                     in InitConfig 
@@ -29,9 +30,9 @@ main = do
                     })
   saveResults (_score g) (_level g)
 
-readMap :: IO (Seq BrickLoc, Seq BrickLoc)
-readMap = do
-            raw <- readFile "src/maps/map.txt"
+readMap :: Int -> IO (Seq BrickLoc, Seq BrickLoc)
+readMap level' = do
+            raw <- readFile $ printf "src/maps/map_%d.txt" level'
             return $ parseMap raw
 
 parseMap :: String -> (Seq BrickLoc, Seq BrickLoc)
