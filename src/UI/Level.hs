@@ -33,13 +33,13 @@ ui =
                 vBox
                     [ str "Please enter level"
                     ],
-                padTop (Pad 5) $ C.hCenter $ str "Choose Level 0-5"
+                padTop (Pad 5) $ C.hCenter $ str "Choose Level 1-5 (only 1,3,5 is supported)"
             ]
 
 handleEvent :: Maybe Int -> BrickEvent () e -> EventM () (Next (Maybe Int))
 handleEvent n (VtyEvent (V.EvKey (V.KChar 'q') _)) = halt n
 handleEvent n (VtyEvent (V.EvKey (V.KChar d) [])) =
-  if d `elem` ['0' .. '9']
+  if d `elem` ['1' .. '5']
     then halt $ Just (read [d])
     else continue n
 handleEvent n _ = continue n

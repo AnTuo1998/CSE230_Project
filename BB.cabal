@@ -13,6 +13,7 @@ library
                      , UI.Level
                      , UI.Ranking
                      , UI.Help
+                     , Buff
   build-depends:       base >= 4.7 && < 5
                      , brick
                      , containers
