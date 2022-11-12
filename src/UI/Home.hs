@@ -23,16 +23,21 @@ app =
 
 ui :: Widget ()
 ui =
-  padLeft (Pad 21) $ padRight (Pad 23) $ C.center $ vLimit 19 $ hLimit 70 $
-    withBorderStyle BS.unicodeBold $
-      B.borderWithLabel (str "CSE230 Presents") $ C.center $
-          vBox
-            [ C.hCenter $
-                vBox
-                  [ str "Brick Breaker!"
-                  ],
-              padTop (Pad 5) $ C.hCenter $ str "Choose Level 0-5"
-            ]
+  padLeft (Pad 21) $
+    padRight (Pad 23) $
+      C.center $
+        vLimit 19 $
+          hLimit 70 $
+            withBorderStyle BS.unicodeBold $
+              B.borderWithLabel (str "CSE230 Presents") $
+                C.center $
+                  vBox
+                    [ C.hCenter $
+                        vBox
+                          [ str "Brick Breaker!"
+                          ],
+                      padTop (Pad 5) $ C.hCenter $ str "Choose Level 0-5"
+                    ]
 
 handleEvent :: Maybe Int -> BrickEvent () e -> EventM () (Next (Maybe Int))
 handleEvent n (VtyEvent (V.EvKey (V.KChar 'q') _)) = halt n
