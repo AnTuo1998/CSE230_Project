@@ -7,7 +7,7 @@ import UI.Home (startHome, getPage)
 import UI.Ranking (showRanking)
 import UI.Help (showHelp)
 import UI.Level (chooseLevel)
-import Control.Lens (element, (&), (.~))
+import Control.Lens (element, (&), (^.), (.~))
 import Data.List (intercalate)
 import Data.List.Split (splitOn)
 import Data.Sequence (Seq (..))
@@ -23,8 +23,19 @@ main :: IO ()
 main = do
   page <- startHome
   case getPage page of 
-    1 -> do
-      level' <- chooseLevel
+    1 -> do 
+        level' <- chooseLevel
+        launchGame level' 0
+    2 -> do 
+      _ <- showRanking
+      main
+    3 -> do 
+      _ <- showHelp
+      main
+    _ -> undefined 
+
+launchGame :: Int -> Int -> IO ()
+launchGame level' score' = do
       prevScores <- readScores
       map' <- readMap level'
       tickInterval <- readInterval level'
@@ -33,6 +44,7 @@ main = do
           ( let intervalFloat = fromIntegral tickInterval :: Float
             in InitConfig
                   { _initLevel = level',
+                    _initScore = score',
                     _initHighestScore = prevScores !! level',
                     _initPureBricks = sel1 map',
                     _initHardBricks = sel2 map',
@@ -41,13 +53,7 @@ main = do
                   }
           )
       saveResults (_score g) (_level g)
-    2 -> do 
-      _ <- showRanking
-      main
-    3 -> do 
-      _ <- showHelp
-      main
-    _ -> undefined 
+      if g^.playNextLevel then launchGame (level' + 1) (_score g) else main
 
 readMap :: Int -> IO (Seq BrickState, Seq BrickState)
 readMap level' = do

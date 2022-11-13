@@ -12,6 +12,7 @@ module BB
     Direction (..),
     GameStatus (..),
     BallState,
+    playNextLevel,
     ballCoord,
     brickCoord,
     isMultiLife,
@@ -104,6 +105,7 @@ makeLenses ''BrickState
 
 data InitConfig = InitConfig
   { _initLevel :: Int,
+    _initScore :: Int,
     _initHighestScore :: Int,
     _initPureBricks :: Seq BrickState,
     _initHardBricks :: Seq BrickState,
@@ -135,7 +137,8 @@ data Game = Game
     _level :: Int,
     _highestScore :: Int,
     -- | the fireball buff
-    _fireCountDown :: Int
+    _fireCountDown :: Int,
+    _playNextLevel :: Bool
   }
   deriving (Show)
 
@@ -216,7 +219,7 @@ initGame initConf =
     Game
       { _initConfig = initConf,
         _player = V2 (width `div` 2) 0,
-        _score = 0,
+        _score = initConf ^. initScore,
         _status = Paused,
         _pureBricks = initConf ^. initPureBricks,
         --  [V2 1 16, V2 4 15, V2 7 15, V2 4 16, V2 7 16, V2 7 22, V2 10 22]
@@ -230,7 +233,8 @@ initGame initConf =
         _level = initConf ^. initLevel,
         _highestScore = initConf ^. initHighestScore,
         _lifeCount = 2,
-        _fireCountDown = 0
+        _fireCountDown = 0,
+        _playNextLevel = False
       }
 
 -------------------------------------------------------------------------------

@@ -114,6 +114,7 @@ handleEvent g (VtyEvent (V.EvKey V.KLeft [])) = continue (if g ^. status `elem` 
 handleEvent g (VtyEvent (V.EvKey (V.KChar 'r') [])) = liftIO (initGame (g ^. initConfig)) >>= continue
 handleEvent g (VtyEvent (V.EvKey (V.KChar 'q') [])) = halt g
 handleEvent g (VtyEvent (V.EvKey (V.KChar 'p') [])) = continue $ pause g
+handleEvent g (VtyEvent (V.EvKey (V.KChar 'g') [])) = halt (g & playNextLevel .~ True)
 handleEvent g (VtyEvent V.EvLostFocus) = continue $ pause g
 handleEvent g (VtyEvent (V.EvMouseDown c r button mods)) = halt g
 handleEvent g _ = continue g
@@ -235,6 +236,7 @@ drawHelp =
         [ ("Move Left: ", "←"),
           ("Move Right: ", "→"),
           ("Restart: ", "r"),
+          ("Next Level: ", "g"),
           ("Quit: ", "q")
         ]
 
