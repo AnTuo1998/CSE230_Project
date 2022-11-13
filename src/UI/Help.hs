@@ -29,7 +29,8 @@ ui =
         vBox
         [ C.hCenter $
             vBox
-                [ str "TBD"
+                [ C.hCenter $ str "TBD",
+                padTop (Pad 3) $ C.hCenter $ str "Press q to return"
                 ]
         ]
 
