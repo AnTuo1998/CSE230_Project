@@ -382,12 +382,12 @@ oppositeBallVert b = b & vDir %~ oppositeDir
 bounceHori :: BallState -> BallState
 bounceHori b =
   let x = b ^. ballCoord . _x
-   in if x < 1 || x >= width - 1 then oppositeBallHori b else b
+   in if (x <= 0 && b^.hDir == West) || (x >= width - 1 && b^.hDir == East) then oppositeBallHori b else b
 
 bounceVert :: BallState -> BallState
 bounceVert b =
   let y = b ^. ballCoord . _y
-   in if y >= height - 1 then oppositeBallVert b else b
+   in if (y >= height - 1) && b^.vDir == North then oppositeBallVert b else b
 
 hitBricks :: Game -> Game
 hitBricks g = g & balls .~ newBalls & score .~ newScore & pureBricks .~ newBricks & buffs %~ joinSeq newBuff
