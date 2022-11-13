@@ -115,6 +115,7 @@ handleEvent g (VtyEvent (V.EvKey (V.KChar 'r') [])) = liftIO (initGame (g ^. ini
 handleEvent g (VtyEvent (V.EvKey (V.KChar 'q') [])) = halt g
 handleEvent g (VtyEvent (V.EvKey (V.KChar 'p') [])) = continue $ pause g
 handleEvent g (VtyEvent (V.EvKey (V.KChar 'g') [])) = halt (g & playNextLevel .~ True)
+handleEvent g (VtyEvent (V.EvKey (V.KChar ' ') [])) = continue (machineGun g)
 handleEvent g (VtyEvent V.EvLostFocus) = continue $ pause g
 handleEvent g (VtyEvent (V.EvMouseDown c r button mods)) = halt g
 handleEvent g _ = continue g

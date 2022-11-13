@@ -43,6 +43,7 @@ module BB
     withinHardBrick,
     isBrick,
     fireCountDown,
+    machineGun
   )
 where
 
@@ -76,6 +77,7 @@ data Direction
   | South
   | East
   | West
+  | Void
   deriving (Eq, Show)
 
 data GameStatus
@@ -275,6 +277,7 @@ moveCoord n West (V2 x y) = V2 (x - n) y
 moveCoord n East (V2 x y) = V2 (x + n) y
 moveCoord n North (V2 x y) = V2 x (y + n)
 moveCoord n South (V2 x y) = V2 x (y - n)
+moveCoord n Void (V2 x y) = V2 x y
 
 isBrick xy@(V2 x y) hb@(V2 hx hy) = y == hy && withinHardBrick xy hb
 
@@ -390,6 +393,17 @@ fireHit g = g & score .~ newScore & pureBricks .~ newBricks
 
 -------------------------------------------------------------------------------
 
+machineGun :: Game -> Game
+machineGun g = g & balls %~ joinSeq newBall
+  where
+    newBall = S.fromList [ BallState
+        { _ballCoord = V2 playerCenter 1,
+          _hDir = Void,
+          _vDir = North
+        }
+      ]
+    playerCenter = g^.player._x + div playerLen 2
+
 isInBound :: Coord -> Bool
 isInBound (V2 x y) = 0 <= x && x < width && 0 <= y
 
@@ -398,6 +412,7 @@ oppositeDir East = West
 oppositeDir West = East
 oppositeDir South = North
 oppositeDir North = South
+oppositeDir Void = Void
 
 oppositeBallHori :: BallState -> BallState
 oppositeBallHori b = b & hDir %~ oppositeDir
