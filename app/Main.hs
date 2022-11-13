@@ -49,26 +49,29 @@ main = do
       main
     _ -> undefined 
 
-readMap :: Int -> IO (Seq BrickLoc, Seq BrickLoc)
+readMap :: Int -> IO (Seq BrickState, Seq BrickState)
 readMap level' = do
   raw <- readFile $ printf "src/maps/map_%d.txt" level'
   return $ parseMap raw
 
-parseMap :: String -> (Seq BrickLoc, Seq BrickLoc)
+parseMap :: String -> (Seq BrickState, Seq BrickState)
 parseMap s = (S.fromList a, S.fromList b)
   where
     tokens = zip2d . splitOn "\n" $ s -- [(i,j),x]
     (a, b) = parseHelper tokens
 
-parseHelper :: [((Int, Int), Char)] -> ([V2 Int], [V2 Int])
+parseHelper :: [((Int, Int), Char)] -> ([BrickState], [BrickState])
 parseHelper [] = ([], [])
 parseHelper tokens@(((i, j), x) : ts) = case x of
   '#' ->
     let (a, b) = parseHelper $ drop 2 tokens
-     in (a ++ [V2 i (height - j)], b)
+     in (a ++ [BrickState {_brickCoord=V2 i (height - j), _isMultiLife=False, _brickLife=0}], b)
+  '$' ->
+    let (a, b) = parseHelper $ drop 2 tokens
+     in (a ++ [BrickState {_brickCoord=V2 i (height - j), _isMultiLife=True, _brickLife=1}], b)    
   '=' ->
     let (a, b) = parseHelper $ drop 2 tokens
-     in (a, b ++ [V2 i (height - j)])
+     in (a, b ++ [BrickState {_brickCoord=V2 i (height - j), _isMultiLife=False, _brickLife=0}])
   _ -> parseHelper ts
 
 -- return (S.fromList[V2 1 16, V2 4 15, V2 7 15, V2 4 16, V2 7 16, V2 7 22, V2 10 22],S.fromList [V2 1 15, V2 9 19])

@@ -78,7 +78,7 @@ data Tick = Tick
 -- | Named resources
 type Name = ()
 
-data Cell = Player | Empty | Ball | PureBrick | HardBrick | FireBallBuff | FireBall_
+data Cell = Player | Empty | Ball | PureBrick | MultiLifeBrick | HardBrick | FireBallBuff | FireBall_
 
 -- App definition
 
@@ -176,12 +176,20 @@ drawGrid g =
     cellAt c@(V2 x y)
       | c `elem` buffsToCoords (g ^. buffs) = FireBallBuff
       | y == 0 && withinPlayer c (g ^. player) = Player
-      | foldl (||) False (fmap (isHardBrick c) (g ^. pureBricks)) = PureBrick
-      | foldl (||) False (fmap (isHardBrick c) (g ^. hardBricks)) = HardBrick
+      | foldl (||) False (fmap (isSingleLifeBrick c) (g ^. pureBricks)) = PureBrick
+      | foldl (||) False (fmap (isMultiLifeBrick c) (g ^. pureBricks)) = MultiLifeBrick
+      | foldl (||) False (fmap (isBrick c . (^. brickCoord)) (g ^. hardBricks)) = HardBrick
       | c `elem` ballsToCoords (g ^. balls) = if g ^. fireCountDown > 0 then FireBall_ else Ball
       | otherwise = Empty
 
 -- util
+
+isMultiLifeBrick :: V2 Int -> BrickState -> Bool
+isMultiLifeBrick c b = isBrick c (b^.brickCoord) && (b^.isMultiLife)
+
+isSingleLifeBrick :: V2 Int -> BrickState -> Bool
+isSingleLifeBrick c b = isBrick c (b^.brickCoord) && (not $ b^.isMultiLife)
+
 ballsToCoords :: Seq BallState -> Seq (V2 Int)
 ballsToCoords = fmap f
   where
@@ -213,6 +221,7 @@ drawCell Player = withAttr playerAttr cw
 drawCell Empty = withAttr emptyAttr cw
 drawCell Ball = withAttr ballsAttr ballw
 drawCell PureBrick = withAttr pureBricksAttr cw
+drawCell MultiLifeBrick = withAttr mBricksAttr cw
 drawCell HardBrick = withAttr hardBricksAttr cw
 drawCell FireBallBuff = withAttr fireBallBuffAttr cw
 drawCell FireBall_ = withAttr fireBallAttr ballw
@@ -247,6 +256,7 @@ theMap =
     [ (playerAttr, V.blue `on` V.blue),
       (noticeStringAttr, fg V.red `V.withStyle` V.bold),
       (pureBricksAttr, V.white `on` V.white),
+      (mBricksAttr, V.cyan `on` V.cyan),
       (hardBricksAttr, V.yellow `on` V.yellow),
       (ballsAttr, fg V.red `V.withStyle` V.bold),
       (timeBarAttr, V.black `on` V.blue),
@@ -268,6 +278,9 @@ ballsAttr = "balls"
 
 pureBricksAttr :: AttrName
 pureBricksAttr = "pureBricks"
+
+mBricksAttr :: AttrName
+mBricksAttr = "mBricks"
 
 hardBricksAttr :: AttrName
 hardBricksAttr = "hardBricks"
