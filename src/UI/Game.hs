@@ -236,6 +236,7 @@ drawHelp =
         (\a -> withAttr noticeStringAttr $ C.hCenter $ str $ sel1 a ++ sel2 a)
         [ ("Move Left: ", "←"),
           ("Move Right: ", "→"),
+          ("Machine Gun: ", "space"),
           ("Restart: ", "r"),
           ("Next Level: ", "g"),
           ("Quit: ", "q")
