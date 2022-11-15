@@ -11,7 +11,7 @@ module BB
     Game (..),
     Direction (..),
     GameStatus (..),
-    BallState,
+    BallState (..),
     playNextLevel,
     ballCoord,
     brickCoord,
@@ -43,7 +43,9 @@ module BB
     withinHardBrick,
     isBrick,
     fireCountDown,
-    machineGun
+    machineGun,
+    maxBalls,
+    actSplit
   )
 where
 
@@ -92,7 +94,7 @@ data BallState = BallState
     _hDir :: Direction,
     _vDir :: Direction
   }
-  deriving (Show)
+  deriving (Eq, Show)
 
 makeLenses ''BallState
 
