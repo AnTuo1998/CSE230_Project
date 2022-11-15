@@ -7,6 +7,7 @@ module BB
   ( initGame,
     pause,
     step,
+    resume,
     InitConfig (..),
     Game (..),
     Direction (..),
@@ -20,6 +21,7 @@ module BB
     initTimeLimit,
     status,
     lifeCount,
+    totalLifeCount,
     score,
     player,
     height,
@@ -76,7 +78,8 @@ data Direction
   deriving (Eq, Show)
 
 data GameStatus
-  = Paused
+  = Ready
+  | Paused
   | Win
   | Dead
   | Playing
@@ -115,6 +118,8 @@ data Game = Game
     _score :: Int,
     -- | life count
     _lifeCount :: Int,
+    -- | total life count
+    _totalLifeCount :: Int,
     -- | all bricks
     _pureBricks :: Seq BrickLoc,
     _hardBricks :: Seq BrickLoc,
@@ -180,7 +185,7 @@ setGameWin :: Game -> Game
 setGameWin g = if null $ g ^. pureBricks then g & status .~ Win else g
 
 setGameOver :: Game -> Game
-setGameOver g = if g ^. timeLimit <= g ^. progress || g ^. lifeCount < 0 then g & status .~ Dead else g
+setGameOver g = if g ^. timeLimit <= g ^. progress || g ^. lifeCount <= 0 then g & status .~ Dead else g
 
 clearBall :: Game -> Game
 clearBall g = g & balls .~ newBalls
@@ -205,7 +210,7 @@ initGame initConf =
       { _initConfig = initConf,
         _player = V2 (width `div` 2) 0,
         _score = 0,
-        _status = Paused,
+        _status = Ready,
         _pureBricks = initConf ^. initPureBricks,
         --  [V2 1 16, V2 4 15, V2 7 15, V2 4 16, V2 7 16, V2 7 22, V2 10 22]
         _hardBricks = initConf ^. initHardBricks,
@@ -217,7 +222,8 @@ initGame initConf =
         _progress = 0,
         _level = initConf ^. initLevel,
         _highestScore = initConf ^. initHighestScore,
-        _lifeCount = 2,
+        _lifeCount = 3,
+        _totalLifeCount = 3,
         _fireCountDown = 0
       }
 
