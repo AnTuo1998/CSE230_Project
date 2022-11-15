@@ -105,6 +105,7 @@ handleEvent s e =
           _ -> error "should not reach here"
           where
             selected = cur $ menu s
+        V.EvKey V.KEsc _ -> halt s
         _ -> continue s
     _ -> continue s
 

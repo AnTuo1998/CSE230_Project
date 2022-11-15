@@ -26,7 +26,10 @@ import Brick
     padLeft,
     padRight,
     padTop,
+    padLeftRight,
+    padTopBottom,
     str,
+    strWrap,
     vBox,
     vLimit,
     withAttr,
@@ -109,16 +112,25 @@ playGame initConf = do
 
 handleEvent :: Game -> BrickEvent Name Tick -> EventM Name (Next Game)
 handleEvent g (AppEvent Tick) = continue $ step g
-handleEvent g (VtyEvent (V.EvKey V.KRight [])) = continue (if g ^. status `elem` [Playing, Paused] then movePlayer East g else g)
-handleEvent g (VtyEvent (V.EvKey V.KLeft [])) = continue (if g ^. status `elem` [Playing, Paused] then movePlayer West g else g)
+handleEvent g (VtyEvent (V.EvKey V.KRight [])) = continue (if g ^. status `elem` [Playing, Paused, Ready] then movePlayer East g else g)
+handleEvent g (VtyEvent (V.EvKey V.KLeft [])) = continue (if g ^. status `elem` [Playing, Paused, Ready] then movePlayer West g else g)
 handleEvent g (VtyEvent (V.EvKey (V.KChar 'r') [])) = liftIO (initGame (g ^. initConfig)) >>= continue
 handleEvent g (VtyEvent (V.EvKey (V.KChar 'q') [])) = halt g
-handleEvent g (VtyEvent (V.EvKey (V.KChar 'p') [])) = continue $ pause g
 handleEvent g (VtyEvent (V.EvKey (V.KChar 'g') [])) = halt (g & playNextLevel .~ True)
 handleEvent g (VtyEvent (V.EvKey (V.KChar ' ') [])) = continue (machineGun g)
 handleEvent g (VtyEvent V.EvLostFocus) = continue $ pause g
 handleEvent g (VtyEvent (V.EvMouseDown c r button mods)) = halt g
+handleEvent g (VtyEvent (V.EvKey V.KEsc [])) = halt g
+-- handleEvent g (VtyEvent (V.EvKey (V.KChar 'p') [])) = continue $ pause g
+handleEvent g (VtyEvent (V.EvKey (V.KChar 'p') [])) =
+  continue
+    ( case g ^. status of
+        Paused -> resume g
+        Playing -> pause g
+        _ -> g
+    )
 handleEvent g _ = continue g
+
 
 -- Drawing
 
@@ -134,37 +146,85 @@ drawUI g =
 
 drawInfoBoard :: Game -> Widget Name
 drawInfoBoard g =
-  withBorderStyle BS.unicodeBold $
-    vBox
+  hLimit 26
+    $ vBox
       [ drawStats g,
-        padTop (Pad 10) drawHelp,
-        padTop (Pad 4) $ drawTimeBar g
+        padTop (Pad 3) $ drawInstr g,
+        padTop (Pad 3) drawHelp
+        -- padTop (Pad 3) $ drawTimeBar g
       ]
+
+-- drawStats :: Game -> Widget Name
+-- drawStats g =
+--   hLimit 30 $
+--     vBox
+--       [ drawHighestScore (g ^. highestScore),
+--         padTop (Pad 2) $ drawScore (g ^. score),
+--         padTop (Pad 2) $ drawLifeCount $ g ^. lifeCount,
+--         padTop (Pad 2) $ drawGameStatus $ g ^. status
+--       ]
 
 drawStats :: Game -> Widget Name
-drawStats g =
-  hLimit 30 $
-    vBox
-      [ drawHighestScore (g ^. highestScore),
-        padTop (Pad 2) $ drawScore (g ^. score),
-        padTop (Pad 2) $ drawLifeCount $ g ^. lifeCount,
-        padTop (Pad 2) $ drawGameStatus $ g ^. status
+drawStats g = hLimit 30
+    $ withBorderStyle BS.unicodeBold
+    $ B.borderWithLabel (str " Stats ")
+    $ vBox
+      [ drawHighestScore $ g ^. highestScore,
+        padTop (Pad 1) $ drawScore $ g ^. score,
+        padTop (Pad 1) $ drawLifeCount (g ^. lifeCount) $ g ^. totalLifeCount
+        -- padTop (Pad 1) $ padLeftRight 1 $ drawGameStatus $ g ^. status
       ]
+      -- [ padLeftRight 1 $ drawHighestScore (g ^. highestScore),
+      --   padLeftRight 1 $ drawScore (g ^. score),
+      --   padLeftRight 1 $ drawLifeCount $ g ^. lifeCount,
+      --   padLeftRight 1 $ drawGameStatus $ g ^. status
+      -- ]
+
+
+drawStat :: String -> String -> Widget Name
+drawStat item stat = padLeftRight 1
+                    $ withAttr noticeStringAttr
+                    $ str item <+> padLeft Max (str stat)
 
 drawScore :: Int -> Widget Name
-drawScore n = withAttr noticeStringAttr $ str $ "score:" ++ show n
+-- drawScore n = withAttr noticeStringAttr $ str $ "score:" ++ show n
+drawScore n = drawStat "score:" $ show n
+
 
 drawHighestScore :: Int -> Widget Name
-drawHighestScore n = withAttr noticeStringAttr $ str $ "highest:" ++ show n
+-- drawHighestScore n = withAttr noticeStringAttr $ str $ "highest:" ++ show n
+drawHighestScore n = drawStat "highest:" $ show n
 
-drawLifeCount :: Int -> Widget Name
-drawLifeCount n = withAttr noticeStringAttr $ str $ "♥:" ++ show n
+drawLifeCount :: Int -> Int -> Widget Name
+-- drawLifeCount n = withAttr noticeStringAttr $ str $ "♥:" ++ show n
+-- drawLifeCount n = withAttr noticeStringAttr $ str $ "life:" ++ take (n+1) (repeat '♥')
+drawLifeCount n a = drawStat "life:" $ replicate n '♥' ++ replicate (a - n) '♡'
 
 drawGameStatus :: GameStatus -> Widget Name
 drawGameStatus Dead = withAttr noticeStringAttr $ str "GAME OVER"
 drawGameStatus Win = withAttr noticeStringAttr $ str "YOU PASSED!"
-drawGameStatus Paused = withAttr noticeStringAttr $ str "MOVE LEFT/RIGHT TO RESUME"
-drawGameStatus _ = withAttr noticeStringAttr $ str " "
+drawGameStatus Paused = withAttr noticeStringAttr $ strWrap "MOVE LEFT/RIGHT TO RESUME"
+drawGameStatus Ready = withAttr noticeStringAttr $ strWrap "MOVE LEFT/RIGHT TO START"
+drawGameStatus _ = emptyWidget
+
+
+drawInstr :: Game -> Widget Name
+drawInstr g = hLimit 30
+    $ withBorderStyle BS.unicodeBold
+    $ B.borderWithLabel (str " Instruction ")
+    $ C.hCenter
+    $ padTopBottom 1
+    $ vBox
+    [ padLeftRight 1 $ drawGameStatus $ s,
+      drawTimer -- maybe combine timer with drawGameStatus
+    ]
+    where
+      s = g ^. status
+      drawTimer = if s == Playing
+        then padLeftRight 1 $ drawTimeBar g
+        else emptyWidget
+
+
 
 drawGrid :: Game -> Widget Name
 drawGrid g =
@@ -229,16 +289,19 @@ drawCell FireBallBuff = withAttr fireBallBuffAttr cw
 drawCell FireBall_ = withAttr fireBallAttr ballw
 
 drawHelp :: Widget Name
-drawHelp =
-  hLimit 25 $
-    vBox $
-      map
-        (\a -> withAttr noticeStringAttr $ C.hCenter $ str $ sel1 a ++ sel2 a)
+drawHelp = hLimit 30
+    $ withBorderStyle BS.unicodeBold
+    $ B.borderWithLabel (str " Help ")
+    $ vBox
+    $ map
+        -- (\a -> withAttr noticeStringAttr $ C.hCenter $ str $ sel1 a ++ sel2 a)
+        (\a -> drawStat (sel1 a) (sel2 a))
         [ ("Move Left: ", "←"),
           ("Move Right: ", "→"),
           ("Machine Gun: ", "space"),
-          ("Restart: ", "r"),
+          ("Reset: ", "r"),
           ("Next Level: ", "g"),
+          ("Pause/Resume: ", "p"),
           ("Quit: ", "q")
         ]
 
