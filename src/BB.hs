@@ -12,7 +12,7 @@ module BB
     Game (..),
     Direction (..),
     GameStatus (..),
-    BallState,
+    BallState (..),
     playNextLevel,
     ballCoord,
     brickCoord,
@@ -45,7 +45,9 @@ module BB
     withinHardBrick,
     isBrick,
     fireCountDown,
-    machineGun
+    machineGun,
+    maxBalls,
+    actSplit
   )
 where
 
@@ -95,7 +97,7 @@ data BallState = BallState
     _hDir :: Direction,
     _vDir :: Direction
   }
-  deriving (Show)
+  deriving (Eq, Show)
 
 makeLenses ''BallState
 
@@ -302,17 +304,18 @@ isHittingDiag brick bst =
 
 isHittingVert :: BrickState -> BallState -> Maybe (BallState, BrickState)
 isHittingVert brick bst =
-  if (by == hy - 1 || by == hy + 1) && withinHardBrick (bst ^. ballCoord) (brick^.brickCoord)
+  if ((by == hy - 1 && vD == North) || (by == hy + 1 && vD == South)) && withinHardBrick (bst ^. ballCoord) (brick^.brickCoord)
     then Just (oppositeBallVert bst, brick)
     else Nothing
   where
     by = bst ^. ballCoord . _y
     bx = bst ^. ballCoord . _x
     hy = brick ^. brickCoord ._y
+    vD = bst ^. vDir
 
 isHittingHori :: BrickState -> BallState -> Maybe (BallState, BrickState)
 isHittingHori brick bst =
-  if by == hy && (bx == hx - 1 || bx == hx + brickLen)
+  if by == hy && ((bx == hx - 1 && hD == East) || (bx == hx + brickLen && hD == West))
     then Just (oppositeBallHori bst, brick)
     else Nothing
   where
@@ -320,6 +323,7 @@ isHittingHori brick bst =
     bx = bst ^. ballCoord . _x
     hx = brick ^. brickCoord ._x
     hy = brick ^. brickCoord ._y
+    hD = bst ^. hDir
 
 
 isInside :: BrickState -> BallState -> Maybe (BallState, BrickState)
