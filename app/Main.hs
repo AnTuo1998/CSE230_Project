@@ -14,10 +14,7 @@ import Data.Sequence (Seq (..))
 import qualified Data.Sequence as S
 import Data.Tuple.Select (Sel1 (sel1), Sel2 (sel2))
 import Linear.V2 (V2 (..))
-import System.IO (IOMode (WriteMode), hClose, hPutStrLn, openFile)
 import Text.Printf (printf)
-import UI.Game (playGame)
-import UI.Home (startHome)
 
 main :: IO ()
 main = do
