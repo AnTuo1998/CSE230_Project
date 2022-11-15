@@ -5,6 +5,12 @@ stack build
 stack exec BB
 ```
 
+# Test
+
+```
+stack test
+```
+
 # Todos
 
 1. fancier UI
