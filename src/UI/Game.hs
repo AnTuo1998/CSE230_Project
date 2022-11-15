@@ -81,7 +81,7 @@ data Tick = Tick
 -- | Named resources
 type Name = ()
 
-data Cell = Player | Empty | Ball | PureBrick | HardBrick | FireBallBuff | FireBall_
+data Cell = Player | Empty | Ball | PureBrick | MultiLifeBrick | HardBrick | FireBallBuff | FireBall_
 
 -- App definition
 
@@ -112,15 +112,25 @@ playGame initConf = do
 
 handleEvent :: Game -> BrickEvent Name Tick -> EventM Name (Next Game)
 handleEvent g (AppEvent Tick) = continue $ step g
-handleEvent g (VtyEvent (V.EvKey V.KRight [])) = continue (if g ^. status `elem` [Playing, Paused] then movePlayer East g else g)
-handleEvent g (VtyEvent (V.EvKey V.KLeft [])) = continue (if g ^. status `elem` [Playing, Paused] then movePlayer West g else g)
-handleEvent g (VtyEvent (V.EvKey (V.KChar ' ') [])) = continue (if g ^. status == Paused then resume g else pause g)
+handleEvent g (VtyEvent (V.EvKey V.KRight [])) = continue (if g ^. status `elem` [Playing, Paused, Ready] then movePlayer East g else g)
+handleEvent g (VtyEvent (V.EvKey V.KLeft [])) = continue (if g ^. status `elem` [Playing, Paused, Ready] then movePlayer West g else g)
 handleEvent g (VtyEvent (V.EvKey (V.KChar 'r') [])) = liftIO (initGame (g ^. initConfig)) >>= continue
 handleEvent g (VtyEvent (V.EvKey (V.KChar 'q') [])) = halt g
--- handleEvent g (VtyEvent (V.EvKey (V.KChar 'p') [])) = continue $ pause g
+handleEvent g (VtyEvent (V.EvKey (V.KChar 'g') [])) = halt (g & playNextLevel .~ True)
+handleEvent g (VtyEvent (V.EvKey (V.KChar ' ') [])) = continue (machineGun g)
 handleEvent g (VtyEvent V.EvLostFocus) = continue $ pause g
 handleEvent g (VtyEvent (V.EvMouseDown c r button mods)) = halt g
+handleEvent g (VtyEvent (V.EvKey V.KEsc [])) = halt g
+-- handleEvent g (VtyEvent (V.EvKey (V.KChar 'p') [])) = continue $ pause g
+handleEvent g (VtyEvent (V.EvKey (V.KChar 'p') [])) =
+  continue
+    ( case g ^. status of
+        Paused -> resume g
+        Playing -> pause g
+        _ -> g
+    )
 handleEvent g _ = continue g
+
 
 -- Drawing
 
@@ -228,12 +238,20 @@ drawGrid g =
     cellAt c@(V2 x y)
       | c `elem` buffsToCoords (g ^. buffs) = FireBallBuff
       | y == 0 && withinPlayer c (g ^. player) = Player
-      | foldl (||) False (fmap (isHardBrick c) (g ^. pureBricks)) = PureBrick
-      | foldl (||) False (fmap (isHardBrick c) (g ^. hardBricks)) = HardBrick
+      | foldl (||) False (fmap (isSingleLifeBrick c) (g ^. pureBricks)) = PureBrick
+      | foldl (||) False (fmap (isMultiLifeBrick c) (g ^. pureBricks)) = MultiLifeBrick
+      | foldl (||) False (fmap (isBrick c . (^. brickCoord)) (g ^. hardBricks)) = HardBrick
       | c `elem` ballsToCoords (g ^. balls) = if g ^. fireCountDown > 0 then FireBall_ else Ball
       | otherwise = Empty
 
 -- util
+
+isMultiLifeBrick :: V2 Int -> BrickState -> Bool
+isMultiLifeBrick c b = isBrick c (b^.brickCoord) && (b^.isMultiLife)
+
+isSingleLifeBrick :: V2 Int -> BrickState -> Bool
+isSingleLifeBrick c b = isBrick c (b^.brickCoord) && (not $ b^.isMultiLife)
+
 ballsToCoords :: Seq BallState -> Seq (V2 Int)
 ballsToCoords = fmap f
   where
@@ -265,6 +283,7 @@ drawCell Player = withAttr playerAttr cw
 drawCell Empty = withAttr emptyAttr cw
 drawCell Ball = withAttr ballsAttr ballw
 drawCell PureBrick = withAttr pureBricksAttr cw
+drawCell MultiLifeBrick = withAttr mBricksAttr cw
 drawCell HardBrick = withAttr hardBricksAttr cw
 drawCell FireBallBuff = withAttr fireBallBuffAttr cw
 drawCell FireBall_ = withAttr fireBallAttr ballw
@@ -279,8 +298,10 @@ drawHelp = hLimit 30
         (\a -> drawStat (sel1 a) (sel2 a))
         [ ("Move Left: ", "←"),
           ("Move Right: ", "→"),
+          ("Machine Gun: ", "space"),
           ("Reset: ", "r"),
-          ("Pause/Resume: ", "space"),
+          ("Next Level: ", "g"),
+          ("Pause/Resume: ", "p"),
           ("Quit: ", "q")
         ]
 
@@ -302,6 +323,7 @@ theMap =
     [ (playerAttr, V.blue `on` V.blue),
       (noticeStringAttr, fg V.red `V.withStyle` V.bold),
       (pureBricksAttr, V.white `on` V.white),
+      (mBricksAttr, V.cyan `on` V.cyan),
       (hardBricksAttr, V.yellow `on` V.yellow),
       (ballsAttr, fg V.red `V.withStyle` V.bold),
       (timeBarAttr, V.black `on` V.blue),
@@ -323,6 +345,9 @@ ballsAttr = "balls"
 
 pureBricksAttr :: AttrName
 pureBricksAttr = "pureBricks"
+
+mBricksAttr :: AttrName
+mBricksAttr = "mBricks"
 
 hardBricksAttr :: AttrName
 hardBricksAttr = "hardBricks"

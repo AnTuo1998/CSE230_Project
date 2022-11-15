@@ -13,8 +13,11 @@ module BB
     Direction (..),
     GameStatus (..),
     BallState,
+    playNextLevel,
     ballCoord,
-    BrickLoc,
+    brickCoord,
+    isMultiLife,
+    BrickState(..),
     initConfig,
     initLevel,
     initTickInterval,
@@ -40,8 +43,9 @@ module BB
     bounceWalls,
     withinPlayer,
     withinHardBrick,
-    isHardBrick,
+    isBrick,
     fireCountDown,
+    machineGun
   )
 where
 
@@ -75,6 +79,7 @@ data Direction
   | South
   | East
   | West
+  | Void
   deriving (Eq, Show)
 
 data GameStatus
@@ -94,13 +99,21 @@ data BallState = BallState
 
 makeLenses ''BallState
 
-type BrickLoc = Coord
+data BrickState = BrickState
+  { _brickCoord :: Coord,
+    _brickLife :: Int,
+    _isMultiLife :: Bool
+  }
+  deriving (Eq, Show)
+
+makeLenses ''BrickState
 
 data InitConfig = InitConfig
   { _initLevel :: Int,
+    _initScore :: Int,
     _initHighestScore :: Int,
-    _initPureBricks :: Seq BrickLoc,
-    _initHardBricks :: Seq BrickLoc,
+    _initPureBricks :: Seq BrickState,
+    _initHardBricks :: Seq BrickState,
     _initTimeLimit :: Int, -- in ticks
     _initTickInterval :: Int -- in 1e-6s
   }
@@ -121,8 +134,8 @@ data Game = Game
     -- | total life count
     _totalLifeCount :: Int,
     -- | all bricks
-    _pureBricks :: Seq BrickLoc,
-    _hardBricks :: Seq BrickLoc,
+    _pureBricks :: Seq BrickState,
+    _hardBricks :: Seq BrickState,
     -- | all balls
     _balls :: Seq BallState,
     _buffs :: Seq BuffState,
@@ -131,7 +144,8 @@ data Game = Game
     _level :: Int,
     _highestScore :: Int,
     -- | the fireball buff
-    _fireCountDown :: Int
+    _fireCountDown :: Int,
+    _playNextLevel :: Bool
   }
   deriving (Show)
 
@@ -153,6 +167,9 @@ brickLen = 2
 
 reward = 10
 
+-- max balls that can exist at the same time; 
+-- split buff will be void if max balls are reached.
+maxBalls = 3
 scheduleFire = [20 + i * 150 | i <- [0 .. 20]]
 
 scheduleSplit = [80 + i * 200 | i <- [0 .. 20]]
@@ -167,7 +184,7 @@ pause :: Game -> Game
 pause g = if g ^. status == Playing then g & status .~ Paused else g
 
 resume :: Game -> Game
-resume g = if g ^. status == Paused then g & status .~ Playing else g
+resume g = if g ^. status `elem` [Paused, Ready] then g & status .~ Playing else g
 
 step :: Game -> Game
 step g = if g ^. status == Playing then stepHelper g else g
@@ -209,7 +226,7 @@ initGame initConf =
     Game
       { _initConfig = initConf,
         _player = V2 (width `div` 2) 0,
-        _score = 0,
+        _score = initConf ^. initScore,
         _status = Ready,
         _pureBricks = initConf ^. initPureBricks,
         --  [V2 1 16, V2 4 15, V2 7 15, V2 4 16, V2 7 16, V2 7 22, V2 10 22]
@@ -224,7 +241,8 @@ initGame initConf =
         _highestScore = initConf ^. initHighestScore,
         _lifeCount = 3,
         _totalLifeCount = 3,
-        _fireCountDown = 0
+        _fireCountDown = 0,
+        _playNextLevel = False
       }
 
 -------------------------------------------------------------------------------
@@ -265,41 +283,48 @@ moveCoord n West (V2 x y) = V2 (x - n) y
 moveCoord n East (V2 x y) = V2 (x + n) y
 moveCoord n North (V2 x y) = V2 x (y + n)
 moveCoord n South (V2 x y) = V2 x (y - n)
+moveCoord n Void (V2 x y) = V2 x y
 
-isHardBrick xy@(V2 x y) hb@(V2 hx hy) = y == hy && withinHardBrick xy hb
+isBrick xy@(V2 x y) hb@(V2 hx hy) = y == hy && withinHardBrick xy hb
 
-isHittingDiag :: BrickLoc -> BallState -> Maybe (BallState, BrickLoc)
-isHittingDiag brick@(V2 hx hy) bst =
+isHittingDiag :: BrickState -> BallState -> Maybe (BallState, BrickState)
+isHittingDiag brick bst =
   if (by == hy - 1 || by == hy + 1)
     && (bx == hx - 1 || bx == hx + brickLen)
-    && isHardBrick (nextPos (bst ^. hDir) (bst ^. vDir) (bst ^. ballCoord)) brick
+    && isBrick (nextPos (bst ^. hDir) (bst ^. vDir) (bst ^. ballCoord)) (brick^.brickCoord)
     then Just (oppositeBallVert bst, brick)
     else Nothing
   where
     by = bst ^. ballCoord . _y
     bx = bst ^. ballCoord . _x
+    hx = brick ^. brickCoord ._x
+    hy = brick ^. brickCoord ._y
 
-isHittingVert :: BrickLoc -> BallState -> Maybe (BallState, BrickLoc)
-isHittingVert brick@(V2 _ hy) bst =
-  if (by == hy - 1 || by == hy + 1) && withinHardBrick (bst ^. ballCoord) brick
+isHittingVert :: BrickState -> BallState -> Maybe (BallState, BrickState)
+isHittingVert brick bst =
+  if (by == hy - 1 || by == hy + 1) && withinHardBrick (bst ^. ballCoord) (brick^.brickCoord)
     then Just (oppositeBallVert bst, brick)
     else Nothing
   where
     by = bst ^. ballCoord . _y
     bx = bst ^. ballCoord . _x
+    hy = brick ^. brickCoord ._y
 
-isHittingHori :: BrickLoc -> BallState -> Maybe (BallState, BrickLoc)
-isHittingHori brick@(V2 hx hy) bst =
+isHittingHori :: BrickState -> BallState -> Maybe (BallState, BrickState)
+isHittingHori brick bst =
   if by == hy && (bx == hx - 1 || bx == hx + brickLen)
     then Just (oppositeBallHori bst, brick)
     else Nothing
   where
     by = bst ^. ballCoord . _y
     bx = bst ^. ballCoord . _x
+    hx = brick ^. brickCoord ._x
+    hy = brick ^. brickCoord ._y
 
-isInside :: BrickLoc -> BallState -> Maybe (BallState, BrickLoc)
-isInside brick@(V2 hx hy) bst =
-  if isHardBrick (bst ^. ballCoord) brick
+
+isInside :: BrickState -> BallState -> Maybe (BallState, BrickState)
+isInside brick bst =
+  if isBrick (bst ^. ballCoord) (brick^.brickCoord)
     then Just (bst, brick)
     else Nothing
   where
@@ -307,7 +332,7 @@ isInside brick@(V2 hx hy) bst =
     bx = bst ^. ballCoord . _x
 
 -- todo: change this to a 1-liner like foldl
-batchCheck :: (BrickLoc -> BallState -> Maybe (BallState, BrickLoc)) -> Seq BrickLoc -> BallState -> Maybe (BallState, BrickLoc)
+batchCheck :: (BrickState -> BallState -> Maybe (BallState, BrickState)) -> Seq BrickState -> BallState -> Maybe (BallState, BrickState)
 batchCheck f S.Empty _ = Nothing
 batchCheck f (bricks :|> brick) ball =
   let ret = f brick ball
@@ -315,25 +340,29 @@ batchCheck f (bricks :|> brick) ball =
         then batchCheck f bricks ball
         else ret
 
-bounceBricks :: Seq Coord -> BallState -> Maybe (BallState, BrickLoc)
+bounceBricks :: Seq BrickState -> BallState -> Maybe (BallState, BrickState)
 bounceBricks S.Empty bst = Nothing
 bounceBricks bricks ball =
   batchCheck (\a b -> isHittingVert a b <|> isHittingHori a b) bricks ball
     <|> batchCheck isHittingDiag bricks ball
 
 -- todo: merge this into bouncePureBricks
-bounceHardBricks :: Seq BrickLoc -> BallState -> BallState
+bounceHardBricks :: Seq BrickState -> BallState -> BallState
 bounceHardBricks bricks ball =
   let ret = bounceBricks bricks ball
    in case ret of
         Nothing -> ball
         Just (ball', _) -> ball'
-
-bouncePureBricks :: Seq BrickLoc -> BallState -> (BallState, BrickLoc, Int)
+emptyBrick = BrickState {
+  _brickCoord = V2 0 0,
+  _brickLife = 0,
+  _isMultiLife = False
+}
+bouncePureBricks :: Seq BrickState -> BallState -> (BallState, BrickState, Int)
 bouncePureBricks bricks ball =
   let ret = bounceBricks bricks ball
    in case ret of
-        Nothing -> (ball, V2 0 0, 0)
+        Nothing -> (ball, emptyBrick, 0)
         Just (ball', brick) -> (ball', brick, reward)
 
 nextPos :: Direction -> Direction -> Coord -> Coord
@@ -345,15 +374,15 @@ nextPos d1 d2 = moveCoord 1 d2 . moveCoord 1 d1
 
 -------------------------------------------------------------------------------
 
-fireBounceBricks :: Seq Coord -> BallState -> Maybe (BallState, BrickLoc)
+fireBounceBricks :: Seq BrickState -> BallState -> Maybe (BallState, BrickState)
 fireBounceBricks S.Empty bst = Nothing
 fireBounceBricks bricks ball = batchCheck isInside bricks ball
 
-fireBouncePureBricks :: Seq BrickLoc -> BallState -> (BallState, BrickLoc, Int)
+fireBouncePureBricks :: Seq BrickState -> BallState -> (BallState, BrickState, Int)
 fireBouncePureBricks bricks ball =
   let ret = fireBounceBricks bricks ball
    in case ret of
-        Nothing -> (ball, V2 0 0, 0)
+        Nothing -> (ball, emptyBrick, 0)
         Just (ball', brick) -> (ball', brick, reward)
 
 fireHit :: Game -> Game
@@ -370,6 +399,17 @@ fireHit g = g & score .~ newScore & pureBricks .~ newBricks
 
 -------------------------------------------------------------------------------
 
+machineGun :: Game -> Game
+machineGun g = g & balls %~ joinSeq newBall
+  where
+    newBall = S.fromList [ BallState
+        { _ballCoord = V2 playerCenter 1,
+          _hDir = Void,
+          _vDir = North
+        }
+      ]
+    playerCenter = g^.player._x + div playerLen 2
+
 isInBound :: Coord -> Bool
 isInBound (V2 x y) = 0 <= x && x < width && 0 <= y
 
@@ -378,6 +418,7 @@ oppositeDir East = West
 oppositeDir West = East
 oppositeDir South = North
 oppositeDir North = South
+oppositeDir Void = Void
 
 oppositeBallHori :: BallState -> BallState
 oppositeBallHori b = b & hDir %~ oppositeDir
@@ -388,22 +429,24 @@ oppositeBallVert b = b & vDir %~ oppositeDir
 bounceHori :: BallState -> BallState
 bounceHori b =
   let x = b ^. ballCoord . _x
-   in if x < 1 || x >= width - 1 then oppositeBallHori b else b
+   in if (x <= 0 && b^.hDir == West) || (x >= width - 1 && b^.hDir == East) then oppositeBallHori b else b
 
 bounceVert :: BallState -> BallState
 bounceVert b =
   let y = b ^. ballCoord . _y
-   in if y >= height - 1 then oppositeBallVert b else b
+   in if (y >= height - 1) && b^.vDir == North then oppositeBallVert b else b
 
 hitBricks :: Game -> Game
-hitBricks g = g & balls .~ newBalls & score .~ newScore & pureBricks .~ newBricks & buffs %~ joinSeq newBuff
+hitBricks g = g & balls .~ newBalls & score .~ newScore & pureBricks .~ filteredNewBricks & buffs %~ joinSeq newBuff
   where
     results = fmap (bouncePureBricks (g ^. pureBricks)) (g ^. balls)
     newBalls = if g ^. fireCountDown > 0 then g ^. balls else fmap sel1 results
     newScore = foldl (+) (g ^. score) (fmap sel3 results)
-    bricksToDelete = S.filter (\b -> b /= V2 0 0) (fmap sel2 results)
+    bricksHit = S.filter (/= emptyBrick) (fmap sel2 results)
     newBuff = if null bricksToDelete then S.empty else dropBuff g (head $ toList bricksToDelete)
-    newBricks = S.filter (`notElem` bricksToDelete) (g ^. pureBricks)
+    newBricks = fmap (\b -> if b `elem` bricksHit then b&brickLife %~ (subtract 1) else b) (g ^. pureBricks)
+    bricksToDelete = S.filter (\b -> b^.brickLife < 0) newBricks
+    filteredNewBricks = S.filter (`notElem` bricksToDelete) newBricks
 
 bounceWalls :: Game -> Game
 bounceWalls g = g & balls .~ newBalls
@@ -438,13 +481,13 @@ joinSeq :: Seq a -> Seq a -> Seq a
 joinSeq x y = S.fromList $ toList x ++ toList y
 
 -- following a fixed schedule (can be made random)
-dropBuff :: Game -> BrickLoc -> Seq BuffState
+dropBuff :: Game -> BrickState -> Seq BuffState
 dropBuff g brick = newBuff
   where
     newBuff = S.empty `joinSeq` newFireBall `joinSeq` newSplit
     newFireBall = if g ^. score `elem` scheduleFire then newBuffFac dropCoord FireBall else S.fromList []
     newSplit = if g ^. score `elem` scheduleSplit then newBuffFac dropCoord Split else S.fromList []
-    dropCoord = moveCoord (div brickLen 2) East brick
+    dropCoord = moveCoord (div brickLen 2) East (brick^.brickCoord)
 
 moveBuffs :: Game -> Game
 moveBuffs g = if g ^. progress `mod` 3 == 0 then g & buffs .~ newBuffs else g
@@ -470,7 +513,7 @@ actFireBall :: Game -> Game
 actFireBall g = g & fireCountDown .~ 250
 
 actSplit :: Game -> Game
-actSplit g = if null (g ^. balls) then g else g & balls %~ joinSeq newBall
+actSplit g = if null (g ^. balls) || length (g^.balls) >= maxBalls then g else g & balls %~ joinSeq newBall
   where
     newBall = S.fromList [oppositeBallVert ballToSplit]
     ballToSplit = head $ toList $ g ^. balls
