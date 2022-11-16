@@ -33,7 +33,7 @@ data BuffState = BuffState
   { _buffT :: BuffType,
     _buffCoord :: V2 Int
   }
-  deriving (Show)
+  deriving (Eq, Show)
 
 makeLenses ''BuffState
 

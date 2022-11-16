@@ -3,53 +3,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 
-module BB
-  ( initGame,
-    pause,
-    step,
-    resume,
-    InitConfig (..),
-    Game (..),
-    Direction (..),
-    GameStatus (..),
-    BallState (..),
-    playNextLevel,
-    ballCoord,
-    brickCoord,
-    isMultiLife,
-    BrickState(..),
-    initConfig,
-    initLevel,
-    initTickInterval,
-    initTimeLimit,
-    status,
-    lifeCount,
-    totalLifeCount,
-    score,
-    player,
-    height,
-    width,
-    movePlayer,
-    timeLimit,
-    progress,
-    pureBricks,
-    hardBricks,
-    balls,
-    buffs,
-    level,
-    highestScore,
-    moveCoord,
-    isInBound,
-    bounceWalls,
-    withinPlayer,
-    withinHardBrick,
-    isBrick,
-    fireCountDown,
-    machineGun,
-    maxBalls,
-    actSplit
-  )
-where
+module BB where
 
 import Buff
 import Control.Applicative ((<|>))
@@ -119,7 +73,7 @@ data InitConfig = InitConfig
     _initTimeLimit :: Int, -- in ticks
     _initTickInterval :: Int -- in 1e-6s
   }
-  deriving (Show)
+  deriving (Eq, Show)
 
 makeLenses ''InitConfig
 
@@ -149,7 +103,7 @@ data Game = Game
     _fireCountDown :: Int,
     _playNextLevel :: Bool
   }
-  deriving (Show)
+  deriving (Eq, Show)
 
 makeLenses ''Game
 
@@ -164,6 +118,7 @@ height = 27
 width = 30
 
 playerLen = 6
+playerSpeed = 3
 
 brickLen = 2
 
@@ -192,7 +147,7 @@ step :: Game -> Game
 step g = if g ^. status == Playing then stepHelper g else g
 
 stepHelper :: Game -> Game
-stepHelper = setGameWin . setGameOver . anotherChance . moveBuffs . actBuffs . clearBall . hitBricks . fireHit . bounceWalls . advanceTime . expireBuff
+stepHelper = setGameWin . setGameOver . anotherChance . moveBuffs . actBuffs . clearBall . hitBricks . fireHit . bounceWalls . runBalls . advanceTime . expireBuff
 
 advanceTime :: Game -> Game
 advanceTime g = g & progress .~ (g ^. progress) + 1
@@ -264,7 +219,7 @@ withinPlayer (V2 bx _) (V2 px _) = bx >= px && bx <= px + playerLen
 
 movePlayer :: Direction -> Game -> Game
 movePlayer dir g =
-  let newCoord = moveCoord 3 dir (g ^. player)
+  let newCoord = moveCoord playerSpeed dir (g ^. player)
       newG = resume g
    in if isInBound newCoord
         then newG & player .~ newCoord
@@ -357,11 +312,13 @@ bounceHardBricks bricks ball =
    in case ret of
         Nothing -> ball
         Just (ball', _) -> ball'
+
 emptyBrick = BrickState {
   _brickCoord = V2 0 0,
   _brickLife = 0,
   _isMultiLife = False
 }
+
 bouncePureBricks :: Seq BrickState -> BallState -> (BallState, BrickState, Int)
 bouncePureBricks bricks ball =
   let ret = bounceBricks bricks ball
@@ -430,13 +387,13 @@ oppositeBallHori b = b & hDir %~ oppositeDir
 oppositeBallVert :: BallState -> BallState
 oppositeBallVert b = b & vDir %~ oppositeDir
 
-bounceHori :: BallState -> BallState
-bounceHori b =
+bounceWallsHori :: BallState -> BallState
+bounceWallsHori b =
   let x = b ^. ballCoord . _x
    in if (x <= 0 && b^.hDir == West) || (x >= width - 1 && b^.hDir == East) then oppositeBallHori b else b
 
-bounceVert :: BallState -> BallState
-bounceVert b =
+bounceWallsVert :: BallState -> BallState
+bounceWallsVert b =
   let y = b ^. ballCoord . _y
    in if (y >= height - 1) && b^.vDir == North then oppositeBallVert b else b
 
@@ -455,9 +412,14 @@ hitBricks g = g & balls .~ newBalls & score .~ newScore & pureBricks .~ filtered
 bounceWalls :: Game -> Game
 bounceWalls g = g & balls .~ newBalls
   where
-    changeDirs ball = bounceHardBricks (g ^. hardBricks) . bouncePlayer (g ^. player) . bounceHori . bounceVert $ ball
+    changeDirs ball = bounceHardBricks (g ^. hardBricks) . bouncePlayer (g ^. player) . bounceWallsHori . bounceWallsVert $ ball
+    newBalls = fmap changeDirs (g ^. balls)
+
+runBalls :: Game -> Game
+runBalls g = g & balls .~ newBalls
+  where
     runBall b = b & ballCoord .~ nextPos (b ^. hDir) (b ^. vDir) (b ^. ballCoord)
-    newBalls = fmap (runBall . changeDirs) (g ^. balls)
+    newBalls = fmap runBall (g ^. balls)
 
 initBalls playerX =
   S.fromList

@@ -24,7 +24,9 @@ testBallState = BallState
           _vDir = North
         }
 
--- testId = TestCase (assertEqual "Always Correct" False False)
+testBrickState = emptyBrick
+
+-- test Buffs
 
 testBuffs g = test [testActSplit1 g, testActSplit2 g]
 
@@ -38,6 +40,47 @@ testActSplit2 g = TestCase $ assertEqual "Never go beyond maxBalls" (g'^.balls) 
     g' = actSplit $ g & balls .~ testBalls
     testBalls = S.fromList $ replicate maxBalls testBallState
 
+-- test hitting Bricks
+
+testHitBrick g = test [testHitVert g, testHitHori g]
+
+testHitVert _ = TestCase $ assertEqual "Hit vertical" (isHittingVert brickSt ballSt) (Just (oppositeBallVert ballSt, brickSt))
+  where
+    brickSt = testBrickState & brickCoord .~ (V2 4 3)
+    ballSt = testBallState & ballCoord .~ (V2 4 4) & vDir .~ South
+
+testHitHori _ = TestCase $ assertEqual "Hit horizontal" (isHittingHori brickSt ballSt) (Just (oppositeBallHori ballSt, brickSt))
+  where
+    brickSt = testBrickState & brickCoord .~ (V2 4 3)
+    ballSt = testBallState & ballCoord .~ (V2 3 3) & vDir .~ East
+
+testBounceBricks _ = TestCase $ assertEqual "Bounce bricks" (bounceBricks brickStSeq ballSt) (Just (oppositeBallVert ballSt, brick1))
+  where
+    brickStSeq = S.fromList [brick1, brick2]
+    brick1 = testBrickState & brickCoord .~ (V2 3 4)
+    brick2 = testBrickState & brickCoord .~ (V2 10 6)
+    ballSt = testBallState & ballCoord .~ (V2 3 3) & vDir .~ North
+
+-- test hitting Walls
+
+testWalls g = test [testBounceWalls g]
+
+testBounceWalls g = TestCase $ assertEqual "Bounce walls & move" (bounceWalls inputG) expectedG
+  where
+    inputG = g & balls .~ S.fromList [testBallState & hDir .~ West & ballCoord .~ coord]
+    expectedG = g & balls .~ S.fromList [testBallState & hDir .~ East & ballCoord .~ coord]
+    coord = V2 0 5
+
+-- test player
+
+testPlayer g = test [testMovePlayer g]
+
+testMovePlayer g = TestCase $ assertEqual "Move Player" (movePlayer dir g) expectedG
+  where 
+    dir = East
+    expectedG = g & player %~ (moveCoord playerSpeed dir)
+                  & status .~ Playing
+
 main :: IO ()
 main = do
   putStrLn "\nTesting... "
@@ -45,7 +88,10 @@ main = do
   counts <-
     runTestTT
       ( test
-          [ testBuffs game
+          [ testBuffs game,
+            testHitBrick game,
+            testPlayer game,
+            testWalls game
           ]
       )
   putStrLn ("Tests Done")
