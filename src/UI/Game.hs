@@ -83,6 +83,10 @@ type Name = ()
 
 data Cell = Player | Empty | Ball | PureBrick | MultiLifeBrick | HardBrick | FireBallBuff | FireBall_
 
+-- constants
+
+maxLevel = 5
+
 -- App definition
 
 app :: App Game Tick Name
@@ -116,7 +120,7 @@ handleEvent g (VtyEvent (V.EvKey V.KRight [])) = continue (if g ^. status `elem`
 handleEvent g (VtyEvent (V.EvKey V.KLeft [])) = continue (if g ^. status `elem` [Playing, Paused, Ready] then movePlayer West g else g)
 handleEvent g (VtyEvent (V.EvKey (V.KChar 'r') [])) = liftIO (initGame (g ^. initConfig)) >>= continue
 handleEvent g (VtyEvent (V.EvKey (V.KChar 'q') [])) = halt g
-handleEvent g (VtyEvent (V.EvKey (V.KChar 'g') [])) = halt (g & playNextLevel .~ True)
+handleEvent g (VtyEvent (V.EvKey (V.KChar 'g') [])) = if g^.level == maxLevel then continue g else halt (g & playNextLevel .~ True)
 handleEvent g (VtyEvent (V.EvKey (V.KChar ' ') [])) = continue (machineGun g)
 handleEvent g (VtyEvent V.EvLostFocus) = continue $ pause g
 handleEvent g (VtyEvent (V.EvMouseDown c r button mods)) = halt g
