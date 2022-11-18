@@ -539,7 +539,7 @@ bouncePureBricksWithBullets bricks bullet =
 hitBricksWithBullets :: Game -> Game
 hitBricksWithBullets g = g & bullets .~ newBullets & score .~ newScore & pureBricks .~ filteredNewBricks & buffs %~ joinSeq newBuff
   where
-    results = fmap (bouncePureBricks (g ^. pureBricks)) (g ^. bullets)
+    results = fmap (bouncePureBricksWithBullets (g ^. pureBricks)) (g ^. bullets)
     newBullets = fmap sel1 (S.filter (\x -> sel3 x == 0) results)
     newScore = foldl (+) (g ^. score) (fmap sel3 results)
     bricksHit = S.filter (/= emptyBrick) (fmap sel2 results)
