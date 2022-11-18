@@ -55,6 +55,8 @@ data BallState = BallState
 
 makeLenses ''BallState
 
+type BulletState = BallState
+
 data BrickState = BrickState
   { _brickCoord :: Coord,
     _brickLife :: Int,
@@ -95,6 +97,9 @@ data Game = Game
     -- | all balls
     _balls :: Seq BallState,
     _buffs :: Seq BuffState,
+    _hasMachineGun :: Bool,
+    _numBullets :: Int,
+    _bullets :: Seq BulletState,
     _timeLimit :: Int,
     _progress :: Int,
     _level :: Int,
@@ -147,10 +152,10 @@ step :: Game -> Game
 step g = if g ^. status == Playing then stepHelper g else g
 
 stepHelper :: Game -> Game
-stepHelper = setGameWin . setGameOver . anotherChance . moveBuffs . actBuffs . clearBall . hitBricks . fireHit . bounceWalls . runBalls . advanceTime . expireBuff
+stepHelper = setGameWin . setGameOver . anotherChance . updateLifeCount . moveBuffs . actBuffs . clearBall . hitBricks . fireHit . hitBricksWithBullets . bounceWalls . runBalls . runBullets . advanceTime . expireBuff
 
 advanceTime :: Game -> Game
-advanceTime g = g & progress .~ (g ^. progress) + 1
+advanceTime g = g & progress .~ g ^. progress + 1
 
 expireBuff :: Game -> Game
 expireBuff g = g & fireCountDown %~ subtract 1
@@ -166,16 +171,26 @@ clearBall g = g & balls .~ newBalls
   where
     newBalls = S.filter (\b -> b ^. ballCoord . _y >= 0) (g ^. balls)
 
-anotherChance :: Game -> Game
-anotherChance g =
-  if null $ g ^. balls
+-- Seperate this from anotherChance to guarantee lifeCount -1
+-- before giving a new life (drawing a new ball) on the board.
+updateLifeCount :: Game -> Game
+updateLifeCount g = 
+  if null (g ^. balls)
     then
       g & lifeCount %~ subtract 1
-        & balls .~ newBalls
+    else g
+
+anotherChance :: Game -> Game
+anotherChance g =
+  if null (g ^. balls)
+    then
+      g & balls .~ newBalls
         & status .~ Paused
     else g
   where
-    newBalls = initBalls (g ^. player . _x)
+    newBalls = if g ^. lifeCount > 0
+      then initBalls (g ^. player . _x)
+      else S.Empty
 
 initGame :: InitConfig -> IO Game
 initGame initConf =
@@ -191,6 +206,9 @@ initGame initConf =
         -- [V2 1 15, V2 9 19]
         _balls = initBalls (div width 2),
         _buffs = initBuff,
+        _hasMachineGun = True,
+        _numBullets = 5,
+        _bullets = S.Empty,
         -- _ballDirs = S.fromList [(East, North)],
         _timeLimit = initConf ^. initTimeLimit, -- in ticks
         _progress = 0,
@@ -214,6 +232,10 @@ bouncePlayer player b =
       d2 = b ^. vDir
    in if y == 1 && d2 == South && withinPlayer (b ^. ballCoord) player then oppositeBallVert b else b
 
+-- TODO: x + playerLen <= or < width
+isPlayerInBound :: Coord -> Bool
+isPlayerInBound (V2 x _) = 0 <= x && x + playerLen <= width
+
 withinPlayer :: V2 Int -> V2 Int -> Bool
 withinPlayer (V2 bx _) (V2 px _) = bx >= px && bx <= px + playerLen
 
@@ -221,7 +243,7 @@ movePlayer :: Direction -> Game -> Game
 movePlayer dir g =
   let newCoord = moveCoord playerSpeed dir (g ^. player)
       newG = resume g
-   in if isInBound newCoord
+   in if isPlayerInBound newCoord
         then newG & player .~ newCoord
         else newG
 
@@ -242,6 +264,7 @@ moveCoord n North (V2 x y) = V2 x (y + n)
 moveCoord n South (V2 x y) = V2 x (y - n)
 moveCoord n Void (V2 x y) = V2 x y
 
+isBrick :: V2 Int -> V2 Int -> Bool
 isBrick xy@(V2 x y) hb@(V2 hx hy) = y == hy && withinHardBrick xy hb
 
 isHittingDiag :: BrickState -> BallState -> Maybe (BallState, BrickState)
@@ -360,17 +383,6 @@ fireHit g = g & score .~ newScore & pureBricks .~ newBricks
 
 -------------------------------------------------------------------------------
 
-machineGun :: Game -> Game
-machineGun g = g & balls %~ joinSeq newBall
-  where
-    newBall = S.fromList [ BallState
-        { _ballCoord = V2 playerCenter 1,
-          _hDir = Void,
-          _vDir = North
-        }
-      ]
-    playerCenter = g^.player._x + div playerLen 2
-
 isInBound :: Coord -> Bool
 isInBound (V2 x y) = 0 <= x && x < width && 0 <= y
 
@@ -483,3 +495,55 @@ actSplit g = if null (g ^. balls) || length (g^.balls) >= maxBalls then g else g
   where
     newBall = S.fromList [oppositeBallVert ballToSplit]
     ballToSplit = head $ toList $ g ^. balls
+
+-------------------------------------------------------------------------------
+
+-- | Machine Gun
+
+-------------------------------------------------------------------------------
+
+machineGun :: Game -> Game
+machineGun g = if g ^. numBullets > 0
+  then
+    g & bullets %~ joinSeq newBullet & numBullets %~ subtract 1
+  else g
+    where
+        newBullet =
+          S.fromList
+            [ BallState
+                { _ballCoord = V2 playerCenter 1,
+                  _hDir = Void,
+                  _vDir = North
+                }
+            ]
+        playerCenter = g ^. player . _x + div playerLen 2
+
+runBullets :: Game -> Game
+runBullets g = g & bullets .~ newBullets
+  where
+    runBullet b = b & ballCoord .~ nextPos (b ^. hDir) (b ^. vDir) (b ^. ballCoord)
+    newBullets = fmap runBullet (g ^. bullets)
+
+bounceBricksWithBullets :: Seq BrickState -> BulletState -> Maybe (BulletState, BrickState)
+bounceBricksWithBullets S.Empty bst = Nothing
+bounceBricksWithBullets bricks bullet =
+  batchCheck isHittingVert bricks bullet
+
+bouncePureBricksWithBullets :: Seq BrickState -> BulletState -> (BulletState, BrickState, Int)
+bouncePureBricksWithBullets bricks bullet =
+  let ret = bounceBricksWithBullets bricks bullet
+   in case ret of
+        Nothing -> (bullet, emptyBrick, 0)
+        Just (bullet', brick) -> (bullet', brick, reward)
+
+hitBricksWithBullets :: Game -> Game
+hitBricksWithBullets g = g & bullets .~ newBullets & score .~ newScore & pureBricks .~ filteredNewBricks & buffs %~ joinSeq newBuff
+  where
+    results = fmap (bouncePureBricksWithBullets (g ^. pureBricks)) (g ^. bullets)
+    newBullets = fmap sel1 (S.filter (\x -> sel3 x == 0) results)
+    newScore = foldl (+) (g ^. score) (fmap sel3 results)
+    bricksHit = S.filter (/= emptyBrick) (fmap sel2 results)
+    newBuff = if null bricksToDelete then S.empty else dropBuff g (head $ toList bricksToDelete)
+    newBricks = fmap (\b -> if b `elem` bricksHit then b & brickLife %~ subtract 1 else b) (g ^. pureBricks)
+    bricksToDelete = S.filter (\b -> b ^. brickLife < 0) newBricks
+    filteredNewBricks = S.filter (`notElem` bricksToDelete) newBricks

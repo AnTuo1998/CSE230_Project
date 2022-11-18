@@ -64,7 +64,7 @@ app =
 
 buildInitState :: IO HomeState
 buildInitState = do
-  records <- readFile "src/record.txt"
+  -- records <- readFile "src/record.txt"
   return HomeState {page = 0, menu = makeMenuCursor ["Start", "Help", "Ranking", "Quit"]}
 
 drawHome :: HomeState -> [Widget ResourceName]
