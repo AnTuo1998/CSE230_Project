@@ -121,7 +121,7 @@ handleEvent g (VtyEvent (V.EvKey V.KLeft [])) = continue (if g ^. status `elem` 
 handleEvent g (VtyEvent (V.EvKey (V.KChar 'r') [])) = liftIO (initGame (g ^. initConfig)) >>= continue
 handleEvent g (VtyEvent (V.EvKey (V.KChar 'q') [])) = halt g
 handleEvent g (VtyEvent (V.EvKey (V.KChar 'g') [])) = if g^.level == maxLevel then continue g else halt (g & playNextLevel .~ True)
-handleEvent g (VtyEvent (V.EvKey (V.KChar ' ') [])) = continue (machineGun g)
+handleEvent g (VtyEvent (V.EvKey (V.KChar ' ') [])) = continue (if g ^. status == Playing then machineGun g else g)
 handleEvent g (VtyEvent V.EvLostFocus) = continue $ pause g
 handleEvent g (VtyEvent (V.EvMouseDown c r button mods)) = halt g
 handleEvent g (VtyEvent (V.EvKey V.KEsc [])) = halt g
