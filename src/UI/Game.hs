@@ -81,7 +81,7 @@ data Tick = Tick
 -- | Named resources
 type Name = ()
 
-data Cell = Player | Empty | Ball | PureBrick | MultiLifeBrick | HardBrick | FireBallBuff | FireBall_
+data Cell = Player | Empty | Ball | PureBrick | MultiLifeBrick | HardBrick | FireBallBuff | FireBall_ | Bullet
 
 -- constants
 
@@ -153,8 +153,8 @@ drawInfoBoard g =
   hLimit 26
     $ vBox
       [ drawStats g,
-        padTop (Pad 3) $ drawInstr g,
-        padTop (Pad 3) drawHelp
+        padTop (Pad 3) drawHelp,
+        padTop (Pad 3) $ drawInstr g
         -- padTop (Pad 3) $ drawTimeBar g
       ]
 
@@ -246,6 +246,7 @@ drawGrid g =
       | foldl (||) False (fmap (isMultiLifeBrick c) (g ^. pureBricks)) = MultiLifeBrick
       | foldl (||) False (fmap (isBrick c . (^. brickCoord)) (g ^. hardBricks)) = HardBrick
       | c `elem` ballsToCoords (g ^. balls) = if g ^. fireCountDown > 0 then FireBall_ else Ball
+      | c `elem` ballsToCoords (g ^. bullets) = Bullet
       | otherwise = Empty
 
 -- util
@@ -291,6 +292,7 @@ drawCell MultiLifeBrick = withAttr mBricksAttr cw
 drawCell HardBrick = withAttr hardBricksAttr cw
 drawCell FireBallBuff = withAttr fireBallBuffAttr cw
 drawCell FireBall_ = withAttr fireBallAttr ballw
+drawCell Bullet = withAttr bulletAttr bulletw
 
 drawHelp :: Widget Name
 drawHelp = hLimit 30
@@ -318,7 +320,8 @@ ballw = str "⬤ "
 buffw :: Widget Name
 buffw = str "DF"
 
--- str "㈫"
+bulletw :: Widget Name
+bulletw = str "• "
 
 theMap :: AttrMap
 theMap =
@@ -332,7 +335,8 @@ theMap =
       (ballsAttr, fg V.red `V.withStyle` V.bold),
       (timeBarAttr, V.black `on` V.blue),
       (fireBallBuffAttr, V.green `on` V.green),
-      (fireBallAttr, fg V.magenta `V.withStyle` V.bold)
+      (fireBallAttr, fg V.magenta `V.withStyle` V.bold),
+      (bulletAttr, fg V.brightRed `V.withStyle` V.bold)
     ]
 
 noticeStringAttr :: AttrName
@@ -364,3 +368,6 @@ fireBallBuffAttr = "fireBallBuff"
 
 fireBallAttr :: AttrName
 fireBallAttr = "fireBall"
+
+bulletAttr :: AttrName
+bulletAttr = "bullet"
