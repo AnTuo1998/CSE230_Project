@@ -24,6 +24,9 @@ library
                      , random
                      , transformers
                      , vty
+                     , text
+                     , microlens
+                     , microlens-th
   default-language:    Haskell2010
 
 executable BB

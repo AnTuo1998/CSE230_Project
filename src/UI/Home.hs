@@ -1,5 +1,5 @@
 module UI.Home
-  ( startHome, getPage
+  ( startHomeIni, startHomeRep, getPage, getCursorState, MenuCursor
   )
 where
 
@@ -51,6 +51,9 @@ selectPrev cs = case prev cs of
 getPage :: HomeState -> Int
 getPage = page
 
+getCursorState :: HomeState -> MenuCursor String
+getCursorState = menu
+
 -- app
 app :: App HomeState e ResourceName
 app =
@@ -61,11 +64,6 @@ app =
       appAttrMap = const $ attrMap V.defAttr [(attrName "selected", fg V.yellow `withStyle` V.bold)],
       appChooseCursor = neverShowCursor
     }
-
-buildInitState :: IO HomeState
-buildInitState = do
-  records <- readFile "src/record.txt"
-  return HomeState {page = 0, menu = makeMenuCursor ["Start", "Help", "Ranking", "Quit"]}
 
 drawHome :: HomeState -> [Widget ResourceName]
 drawHome st =
@@ -109,8 +107,12 @@ handleEvent s e =
         _ -> continue s
     _ -> continue s
 
-startHome :: IO HomeState
-startHome = do
-  initState <- buildInitState
-  finalState <- defaultMain app initState
+startHomeIni :: IO HomeState
+startHomeIni = do
+  finalState <- defaultMain app HomeState {page = 0, menu = makeMenuCursor ["Start", "Help", "Ranking", "Quit"]}
+  if page finalState == 0 then exitSuccess else return finalState
+
+startHomeRep :: MenuCursor String -> IO HomeState
+startHomeRep cursor = do
+  finalState <- defaultMain app HomeState {page = 0, menu = cursor}
   if page finalState == 0 then exitSuccess else return finalState

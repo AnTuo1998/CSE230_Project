@@ -1,12 +1,12 @@
 module Main where
 
 import BB
-import System.IO (hClose, hPutStrLn, openFile, IOMode(WriteMode) )
+import System.IO (hClose, hPutStrLn, openFile, IOMode(WriteMode), IOMode(AppendMode) )
 import UI.Game (playGame)
-import UI.Home (startHome, getPage)
+import UI.Home (startHomeIni, startHomeRep, getPage, getCursorState, MenuCursor)
 import UI.Ranking (showRanking)
 import UI.Help (showHelp)
-import UI.Level (chooseLevel)
+import UI.Level (chooseLevel, getLevel, getUsername)
 import Control.Lens (element, (&), (^.), (.~))
 import Data.List (intercalate)
 import Data.List.Split (splitOn)
@@ -18,21 +18,42 @@ import Text.Printf (printf)
 
 main :: IO ()
 main = do
-  page <- startHome
-  case getPage page of 
-    1 -> do 
-        level' <- chooseLevel
-        launchGame level' 0
-    2 -> do 
-      _ <- showRanking
-      main
-    3 -> do 
-      _ <- showHelp
-      main
-    _ -> undefined 
+  page <- startHomeIni
+  let cursor = getCursorState page in
+    case getPage page of 
+      1 -> do 
+          levelState' <- chooseLevel
+          case getLevel levelState' of
+            (-1) -> helper cursor
+            n -> launchGame n 0 $ getUsername levelState'
+      2 -> do 
+        _ <- showRanking
+        helper cursor
+      3 -> do 
+        _ <- showHelp
+        helper cursor
+      _ -> undefined 
 
-launchGame :: Int -> Int -> IO ()
-launchGame level' score' = do
+helper :: MenuCursor String -> IO ()
+helper cursor = do
+  page <- startHomeRep cursor
+  let cursornew = getCursorState page in
+    case getPage page of 
+      1 -> do 
+          levelState' <- chooseLevel
+          case getLevel levelState' of
+            (-1) -> helper cursornew
+            n -> launchGame n 0 $ getUsername levelState'
+      2 -> do 
+        _ <- showRanking
+        helper cursornew
+      3 -> do 
+        _ <- showHelp
+        helper cursornew
+      _ -> undefined 
+
+launchGame :: Int -> Int -> String -> IO ()
+launchGame level' score' usr' = do
       prevScores <- readScores
       map' <- readMap level'
       tickInterval <- readInterval level'
@@ -50,7 +71,8 @@ launchGame level' score' = do
                   }
           )
       saveResults (_score g) (_level g)
-      if g^.playNextLevel then launchGame (level' + 1) (_score g) else main
+      saveRanking $ usr' ++ " " ++ show (_score g)
+      if g^.playNextLevel then launchGame (level' + 1) (_score g) usr' else main
 
 readMap :: Int -> IO (Seq BrickState, Seq BrickState)
 readMap level' = do
@@ -87,6 +109,9 @@ zip2d ll =
 scoreFilePath :: String
 scoreFilePath = "src/highest.txt"
 
+rankingFilePath :: String
+rankingFilePath = "src/record.txt"
+
 intervalFilePath :: String
 intervalFilePath = "src/interval.txt"
 
@@ -103,6 +128,12 @@ saveScores s = do
   scoreFile <- openFile scoreFilePath WriteMode
   hPutStrLn scoreFile s
   hClose scoreFile
+
+saveRanking :: String -> IO ()
+saveRanking s = do
+  rankFile <- openFile rankingFilePath AppendMode
+  hPutStrLn rankFile s
+  hClose rankFile
 
 parseNumbers :: String -> [Int]
 parseNumbers s = fmap (read :: String -> Int) (words s)
