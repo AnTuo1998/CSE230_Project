@@ -2,6 +2,31 @@
 
 **Group Member**: Hanlin Teng, Spencer Du, Wenzao Cui, Yunshu Zhou
 
+## Updates
+
+### Architecture
+
+#### Game Logics
+
+The game consists of following key components:
+- Game status: can either be ready to start, in progress, or ended (win or lose).
+- Game statistics: score, life count, time passed, etc.
+- Balls: the balls on the court, which can be ordinary balls (bounce when hitting a brick) or fire balls (don't bounce when hitting a brick).
+- Bricks: the living bricks in the game. They are initialized with a life count; the bricks will disappear when hit by `lifeCount` times by the balls.
+- Buffs: the buffs in the game. Buff types include `FireBallBuff`, which turns all ordinary balls into fire balls, and `SplitBallBuff` which chooses a random ball on the court and split it into two.
+
+To update the game with each time tick, the following operations are performed:
+- Update game status: check if the game is
+  - won, if all bricks are crushed; or
+  - lost, if player's life count is zero or time is up.
+- Handle hitting: 
+  - check if any bricks are hit, and if so,
+    - update scores;
+    - clear the bricks that have been hit `lifeCount` times, and trigger generation of buffs;
+    - change the direction of the balls if necessary.
+  - change direction if the balls hit the walls.
+- Update moving objects: update the position of balls and buffs; clear the balls if out of bound.
+
 ## Proposal
 
 ### Project Description
