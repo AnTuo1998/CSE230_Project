@@ -11,3 +11,6 @@ hello 280
 Alice 40
 Alice 10
 Alice 0
+oo 100
+Alice 0
+1 0

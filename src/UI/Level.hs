@@ -75,7 +75,7 @@ drawLevel st =
         B.borderWithLabel (str "CSE230 Presents") $ C.center $
         C.center $
             vBox
-            [ padTop (Pad 1) $C.vCenter $ C.hCenter $ renderForm st, 
+            [ C.vCenter $ C.hCenter $ renderForm st, 
             padTop (Pad 1) $ C.hCenter $ str "Username cannot be empty",  
             padBottom (Pad 3) $ C.hCenter $ str "Level can only be chosen from 0 - 5"]
            ]
@@ -84,15 +84,14 @@ handleEvent :: Form LevelState e ResourceName -> BrickEvent ResourceName e -> Ev
 handleEvent s e =
   case e of
     VtyEvent (V.EvKey (V.KChar 'q') _) -> halt $ mkForm LevelState {_name = T.pack "", _level = -1}
-    VtyEvent (V.EvKey V.KEnter []) -> halt s
+    VtyEvent (V.EvKey V.KEnter []) -> if let l = getLevel s; n = getUsername s in l >= 0 && l <= 5 && n /= "" then halt s else continue s
     VtyEvent (V.EvKey V.KDown []) -> 
       continue $ setFormFocus LevelField s
     VtyEvent (V.EvKey V.KUp []) -> 
       continue $ setFormFocus NameField s
     _ -> do
       s' <- handleFormEvent e s
-      continue $ setFieldValid (let l = getLevel s' in l >= 0 && l <= 5 ) LevelField s'
-      continue $ setFieldValid (let n = getUsername s' in  n /= "" ) NameField s'
+      continue $ setFieldValid (let l = getLevel s' in l >= 0 && l <= 5 ) LevelField $ setFieldValid (let n = getUsername s' in  n /= "" ) NameField s'
 
 chooseLevel :: IO (Form LevelState e ResourceName)
 chooseLevel = do

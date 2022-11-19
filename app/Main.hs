@@ -42,7 +42,7 @@ helper cursor = do
       1 -> do 
           levelState' <- chooseLevel
           case getLevel levelState' of
-            (-1) -> helper cursornew
+            (-1) -> helper cursor
             n -> launchGame n 0 $ getUsername levelState'
       2 -> do 
         _ <- showRanking
