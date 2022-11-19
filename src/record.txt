@@ -10,3 +10,4 @@ haha 280
 hello 280
 Alice 40
 Alice 10
+Alice 0
