@@ -66,7 +66,7 @@ launchGame level' score' usr' = do
                     _initHighestScore = prevScores !! level',
                     _initPureBricks = sel1 map',
                     _initHardBricks = sel2 map',
-                    _initTimeLimit = floor $ 240000000.0 / intervalFloat,
+                    _initTimeLimit = floor $ 60000000.0 / intervalFloat,
                     _initTickInterval = tickInterval
                   }
           )
@@ -90,13 +90,13 @@ parseHelper [] = ([], [])
 parseHelper tokens@(((i, j), x) : ts) = case x of
   '#' ->
     let (a, b) = parseHelper $ drop 2 tokens
-     in (a ++ [BrickState {_brickCoord=V2 i (height - j), _isMultiLife=False, _brickLife=0}], b)
+     in (a ++ [BrickState {_brickCoord=V2 i (height - j - 1), _isMultiLife=False, _brickLife=0}], b)
   '$' ->
     let (a, b) = parseHelper $ drop 2 tokens
-     in (a ++ [BrickState {_brickCoord=V2 i (height - j), _isMultiLife=True, _brickLife=1}], b)    
+     in (a ++ [BrickState {_brickCoord=V2 i (height - j - 1), _isMultiLife=True, _brickLife=1}], b)    
   '=' ->
     let (a, b) = parseHelper $ drop 2 tokens
-     in (a, b ++ [BrickState {_brickCoord=V2 i (height - j), _isMultiLife=False, _brickLife=0}])
+     in (a, b ++ [BrickState {_brickCoord=V2 i (height - j - 1), _isMultiLife=False, _brickLife=0}])
   _ -> parseHelper ts
 
 -- return (S.fromList[V2 1 16, V2 4 15, V2 7 15, V2 4 16, V2 7 16, V2 7 22, V2 10 22],S.fromList [V2 1 15, V2 9 19])

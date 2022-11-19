@@ -124,6 +124,7 @@ width = 30
 
 playerLen = 6
 playerSpeed = 3
+fireCountInitVal = 100
 
 brickLen = 2
 
@@ -488,7 +489,7 @@ actBuffs g = newG
     newG = actBuff catchedBuff (g & buffs .~ liveBuffs)
 
 actFireBall :: Game -> Game
-actFireBall g = g & fireCountDown .~ 250
+actFireBall g = g & fireCountDown .~ fireCountInitVal
 
 actSplit :: Game -> Game
 actSplit g = if null (g ^. balls) || length (g^.balls) >= maxBalls then g else g & balls %~ joinSeq newBall
