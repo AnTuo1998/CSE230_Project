@@ -19,13 +19,30 @@ To update the game with each time tick, the following operations are performed:
 - Update game status: check if the game is
   - won, if all bricks are crushed; or
   - lost, if player's life count is zero or time is up.
-- Handle hitting: 
+- Handle hitting:
   - check if any bricks are hit, and if so,
     - update scores;
     - clear the bricks that have been hit `lifeCount` times, and trigger generation of buffs;
     - change the direction of the balls if necessary.
   - change direction if the balls hit the walls.
 - Update moving objects: update the position of balls and buffs; clear the balls if out of bound.
+
+#### UI Module
+Our implementation contains multiple pages that utilize different Brick widgets and rendering routines for various functionalities. Pages can exchange states, and proceed depending on the final state of the previous page.
+
+- Home Page: Home page consists of multiple entries to other pages. Its main component is a self defined cursor that allows users to scroll up and down to enter different pages.
+- Ranking Page: Ranking page reads username-score pairs form a txt file, sorts them by scores, and displays the top ten records.
+- Start Page: Start page is where users can enter their username, and choose which level they want to play. We used the `Form` attribute in Brick to facilitate user inputs and updates. We also enforced multiple validations on user inputs, e.g. level can only be chosen from 0-5, and username cannot be empty. Input boxes have different colors corresponding to valid or invalid inputs.
+- Help Page: Help page just shows a text of instructions.
+
+
+#### Challenges
+- Restore previous state when returned from another page: we chain our pages together, and states are passed through return values.  
+- Handle invalid events (e.g. check invalid user inputs): we use the `Form` widget in Brick. It has build-in methods for input validation and display.
+
+
+#### Expectation
+We think we'll be able to finish our project on time.
 
 ## Proposal
 
