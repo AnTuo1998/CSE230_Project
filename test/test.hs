@@ -9,20 +9,23 @@ import System.Exit
 import Test.HUnit
 import UI.Game
 
-testInitConfig = InitConfig { _initLevel = 0,
-                    _initScore = 0,
-                    _initHighestScore = 0,
-                    _initPureBricks = S.fromList [],
-                    _initHardBricks = S.fromList [],
-                    _initTimeLimit = floor $ 240000000.0 / 55000,
-                    _initTickInterval = 55000
-                  }
+testInitConfig =
+  InitConfig
+    { _initLevel = 0,
+      _initScore = 0,
+      _initHighestScore = 0,
+      _initPureBricks = S.fromList [],
+      _initHardBricks = S.fromList [],
+      _initTimeLimit = floor $ 240000000.0 / 55000,
+      _initTickInterval = 55000
+    }
 
-testBallState = BallState
-        { _ballCoord = V2 1 1,
-          _hDir = East,
-          _vDir = North
-        }
+testBallState =
+  BallState
+    { _ballCoord = V2 1 1,
+      _hDir = East,
+      _vDir = North
+    }
 
 testBrickState = emptyBrick
 
@@ -30,12 +33,12 @@ testBrickState = emptyBrick
 
 testBuffs g = test [testActSplit1 g, testActSplit2 g]
 
-testActSplit1 g = TestCase $ assertEqual "Normal Split" (length (g'^.balls)) (length testBalls + 1)
+testActSplit1 g = TestCase $ assertEqual "Normal Split" (length (g' ^. balls)) (length testBalls + 1)
   where
     g' = actSplit $ g & balls .~ testBalls
     testBalls = S.fromList $ [testBallState]
 
-testActSplit2 g = TestCase $ assertEqual "Never go beyond maxBalls" (g'^.balls) testBalls
+testActSplit2 g = TestCase $ assertEqual "Never go beyond maxBalls" (g' ^. balls) testBalls
   where
     g' = actSplit $ g & balls .~ testBalls
     testBalls = S.fromList $ replicate maxBalls testBallState
@@ -76,10 +79,11 @@ testBounceWalls g = TestCase $ assertEqual "Bounce walls & move" (bounceWalls in
 testPlayer g = test [testMovePlayer g]
 
 testMovePlayer g = TestCase $ assertEqual "Move Player" (movePlayer dir g) expectedG
-  where 
+  where
     dir = East
-    expectedG = g & player %~ (moveCoord playerSpeed dir)
-                  & status .~ Playing
+    expectedG =
+      g & player %~ (moveCoord playerSpeed dir)
+        & status .~ Playing
 
 main :: IO ()
 main = do

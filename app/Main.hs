@@ -1,78 +1,78 @@
 module Main where
 
 import BB
-import System.IO (hClose, hPutStrLn, openFile, IOMode(WriteMode), IOMode(AppendMode) )
-import UI.Game (playGame)
-import UI.Home (startHomeIni, startHomeRep, getPage, getCursorState, MenuCursor)
-import UI.Ranking (showRanking)
-import UI.Help (showHelp)
-import UI.Level (chooseLevel, getLevel, getUsername)
-import Control.Lens (element, (&), (^.), (.~))
+import Control.Lens (element, (&), (.~), (^.))
 import Data.List (intercalate)
 import Data.List.Split (splitOn)
 import Data.Sequence (Seq (..))
 import qualified Data.Sequence as S
 import Data.Tuple.Select (Sel1 (sel1), Sel2 (sel2))
 import Linear.V2 (V2 (..))
+import System.IO (IOMode (AppendMode, WriteMode), hClose, hPutStrLn, openFile)
 import Text.Printf (printf)
+import UI.Game (playGame)
+import UI.Help (showHelp)
+import UI.Home (MenuCursor, getCursorState, getPage, startHomeIni, startHomeRep)
+import UI.Level (chooseLevel, getLevel, getUsername)
+import UI.Ranking (showRanking)
 
 main :: IO ()
 main = do
   page <- startHomeIni
-  let cursor = getCursorState page in
-    case getPage page of 
-      1 -> do 
+  let cursor = getCursorState page
+   in case getPage page of
+        1 -> do
           levelState' <- chooseLevel
           case getLevel levelState' of
             (-1) -> helper cursor
             n -> launchGame n 0 $ getUsername levelState'
-      2 -> do 
-        _ <- showRanking
-        helper cursor
-      3 -> do 
-        _ <- showHelp
-        helper cursor
-      _ -> undefined 
+        2 -> do
+          _ <- showRanking
+          helper cursor
+        3 -> do
+          _ <- showHelp
+          helper cursor
+        _ -> undefined
 
 helper :: MenuCursor String -> IO ()
 helper cursor = do
   page <- startHomeRep cursor
-  let cursornew = getCursorState page in
-    case getPage page of 
-      1 -> do 
+  let cursornew = getCursorState page
+   in case getPage page of
+        1 -> do
           levelState' <- chooseLevel
           case getLevel levelState' of
             (-1) -> helper cursor
             n -> launchGame n 0 $ getUsername levelState'
-      2 -> do 
-        _ <- showRanking
-        helper cursornew
-      3 -> do 
-        _ <- showHelp
-        helper cursornew
-      _ -> undefined 
+        2 -> do
+          _ <- showRanking
+          helper cursornew
+        3 -> do
+          _ <- showHelp
+          helper cursornew
+        _ -> undefined
 
 launchGame :: Int -> Int -> String -> IO ()
 launchGame level' score' usr' = do
-      prevScores <- readScores
-      map' <- readMap level'
-      tickInterval <- readInterval level'
-      g <-
-        playGame
-          ( let intervalFloat = fromIntegral tickInterval :: Float
-            in InitConfig
-                  { _initLevel = level',
-                    _initScore = score',
-                    _initHighestScore = prevScores !! level',
-                    _initPureBricks = sel1 map',
-                    _initHardBricks = sel2 map',
-                    _initTimeLimit = floor $ 60000000.0 / intervalFloat,
-                    _initTickInterval = tickInterval
-                  }
-          )
-      saveResults (_score g) (_level g)
-      saveRanking $ usr' ++ " " ++ show (_score g)
-      if g^.playNextLevel then launchGame (level' + 1) (_score g) usr' else main
+  prevScores <- readScores
+  map' <- readMap level'
+  tickInterval <- readInterval level'
+  g <-
+    playGame
+      ( let intervalFloat = fromIntegral tickInterval :: Float
+         in InitConfig
+              { _initLevel = level',
+                _initScore = score',
+                _initHighestScore = prevScores !! level',
+                _initPureBricks = sel1 map',
+                _initHardBricks = sel2 map',
+                _initTimeLimit = floor $ 60000000.0 / intervalFloat,
+                _initTickInterval = tickInterval
+              }
+      )
+  saveResults (_score g) (_level g)
+  saveRanking $ usr' ++ " " ++ show (_score g)
+  if g ^. playNextLevel then launchGame (level' + 1) (_score g) usr' else main
 
 readMap :: Int -> IO (Seq BrickState, Seq BrickState)
 readMap level' = do
@@ -90,13 +90,13 @@ parseHelper [] = ([], [])
 parseHelper tokens@(((i, j), x) : ts) = case x of
   '#' ->
     let (a, b) = parseHelper $ drop 2 tokens
-     in (a ++ [BrickState {_brickCoord=V2 i (height - j - 1), _isMultiLife=False, _brickLife=0}], b)
+     in (a ++ [BrickState {_brickCoord = V2 i (height - j - 1), _isMultiLife = False, _brickLife = 0}], b)
   '$' ->
     let (a, b) = parseHelper $ drop 2 tokens
-     in (a ++ [BrickState {_brickCoord=V2 i (height - j - 1), _isMultiLife=True, _brickLife=1}], b)    
+     in (a ++ [BrickState {_brickCoord = V2 i (height - j - 1), _isMultiLife = True, _brickLife = 1}], b)
   '=' ->
     let (a, b) = parseHelper $ drop 2 tokens
-     in (a, b ++ [BrickState {_brickCoord=V2 i (height - j - 1), _isMultiLife=False, _brickLife=0}])
+     in (a, b ++ [BrickState {_brickCoord = V2 i (height - j - 1), _isMultiLife = False, _brickLife = 0}])
   _ -> parseHelper ts
 
 -- return (S.fromList[V2 1 16, V2 4 15, V2 7 15, V2 4 16, V2 7 16, V2 7 22, V2 10 22],S.fromList [V2 1 15, V2 9 19])
