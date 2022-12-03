@@ -73,6 +73,7 @@ import Data.Tuple.Select (Sel1 (sel1), Sel2 (sel2), Sel3 (sel3))
 import qualified Graphics.Vty as V
 import Linear.V2 (V2 (..))
 import Text.Printf (printf)
+import UI.Theme (bgColor, defAttr)
 
 -- Types
 
@@ -324,27 +325,23 @@ buffw = str "DF"
 bulletw :: Widget Name
 bulletw = str "• "
 
-bgColor = V.rgbColor 224 226 226
-
 theMap :: AttrMap
 theMap =
   attrMap
     defAttr
     [ (playerAttr, bg $ V.rgbColor 169 158 171),
-      (noticeStringAttr, V.red `on` bgColor `V.withStyle` V.bold),
+      (noticeStringAttr, V.rgbColor 126 110 138 `on` bgColor `V.withStyle` V.bold),
       (pureBricksAttr, bg $ V.rgbColor 220 191 202),
       (mBricksAttr, bg $ V.rgbColor 208 138 137),
       (hardBricksAttr, V.yellow `on` V.yellow),
       (ballsAttr, V.rgbColor 96 87 110 `on` bgColor),
-      (timeBarAttr, V.black `on` V.blue),
+      (timeBarAttr, V.rgbColor 209 209 209 `on` V.rgbColor 113 151 195),
       (fireBallBuffAttr, bg $ V.rgbColor 178 206 254),
-      (fireBallAttr, V.rgbColor 243 228 161 `on` bgColor),
+      (fireBallAttr, V.rgbColor 218 177 222 `on` bgColor),
       (bulletAttr, fg V.brightRed `V.withStyle` V.bold),
       (emptyAttr, bg bgColor),
       (globalAttr, bg bgColor)
     ]
-
-defAttr = bg bgColor
 
 noticeStringAttr :: AttrName
 noticeStringAttr = "noticeString"

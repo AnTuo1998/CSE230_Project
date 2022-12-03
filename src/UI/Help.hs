@@ -12,6 +12,7 @@ import Brick.Widgets.Core
   )
 import qualified Graphics.Vty as V
 import System.Exit (exitSuccess)
+import UI.Theme (defAttr)
 
 app :: App () e ()
 app =
@@ -19,7 +20,7 @@ app =
     { appDraw = const [ui],
       appHandleEvent = handleEvent,
       appStartEvent = return,
-      appAttrMap = const $ attrMap V.defAttr [],
+      appAttrMap = const $ attrMap defAttr [],
       appChooseCursor = neverShowCursor
     }
 

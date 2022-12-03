@@ -18,6 +18,7 @@ import Lens.Micro
 import Lens.Micro.TH (makeLenses)
 import qualified Data.Text as T
 import qualified Brick.Widgets.Edit as E
+import UI.Theme (defAttr)
 
 data ResourceName
   = NameField
@@ -60,7 +61,7 @@ app =
     { appDraw = drawLevel,
       appHandleEvent = handleEvent,
       appStartEvent = return,
-      appAttrMap = const $ attrMap V.defAttr [(E.editAttr, V.white `on` V.black),
+      appAttrMap = const $ attrMap defAttr [(E.editAttr, fg V.black),
       (E.editFocusedAttr, V.black `on` V.yellow), (invalidFormInputAttr, V.white `on` V.red),
       (focusedFormInputAttr, V.black `on` V.yellow) ],
       appChooseCursor = neverShowCursor
@@ -72,7 +73,7 @@ drawLevel st =
   [padLeft (Pad 21) $
     padRight (Pad 23) $
       C.center $ vLimit 19 $ hLimit 70 $ withBorderStyle BS.unicodeBold $
-        B.borderWithLabel (str "CSE230 Presents") $ C.center $
+        B.borderWithLabel (str " CSE230 Presents ") $ C.center $
         C.center $
             vBox
             [ C.vCenter $ C.hCenter $ renderForm st, 

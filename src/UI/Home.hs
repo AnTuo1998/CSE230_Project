@@ -12,6 +12,7 @@ import qualified Graphics.Vty as V
 import System.Exit (exitSuccess)
 import System.IO
 import Graphics.Vty.Attributes (withStyle)
+import UI.Theme (defAttr)
 
 -- data types
 type ResourceName = String
@@ -61,15 +62,17 @@ app =
     { appDraw = drawHome,
       appHandleEvent = handleEvent,
       appStartEvent = return,
-      appAttrMap = const $ attrMap V.defAttr [(attrName "selected", fg V.yellow `withStyle` V.bold)],
+      appAttrMap = const $ attrMap defAttr [(attrName "selected", fg V.yellow `withStyle` V.bold)],
       appChooseCursor = neverShowCursor
     }
+
+
 
 drawHome :: HomeState -> [Widget ResourceName]
 drawHome st =
   [padLeft (Pad 21) $ padRight (Pad 23) $ C.center $ vLimit 22 $ hLimit 70 $
     withBorderStyle BS.unicodeBold $
-      B.borderWithLabel (str "CSE230 Presents") $ C.center $
+      B.borderWithLabel (str " CSE230 Presents ") $ C.center $
       vBox [ C.hCenter $
                 vBox
                   [ C.hCenter $ str " ______  ______  __  ______  __  __\n/\\  == \\/\\  == \\/\\ \\/\\  ___\\/\\ \\/ /\n\\ \\  __<\\ \\  __<\\ \\ \\ \\ \\___\\ \\  _\"-.\n \\ \\_____\\ \\_\\ \\_\\ \\_\\ \\_____\\ \\_\\ \\_\\\n  \\/_____/\\/_/ /_/\\/_/\\/_____/\\/_/\\/_/",

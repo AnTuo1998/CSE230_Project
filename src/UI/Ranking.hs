@@ -13,6 +13,7 @@ import System.Exit (exitSuccess)
 import Graphics.Vty
 import Data.List (sortBy)
 import Data.Function (on)
+import UI.Theme as T
 
 -- datatypes
 type ResourceName = String
@@ -41,14 +42,14 @@ app =
     { appDraw = drawRanking,
       appHandleEvent = handleEvent,
       appStartEvent = return,
-      appAttrMap = const $ attrMap V.defAttr [(attrName "top", fg V.yellow `withStyle` V.bold)],
+      appAttrMap = const $ attrMap T.defAttr [(attrName "top", fg V.yellow `withStyle` V.bold)],
       appChooseCursor = neverShowCursor
     }
 
 drawRanking :: RankingState -> [Widget ResourceName]
 drawRanking st =
   [padLeft (Pad 21) $ padRight (Pad 23) $ C.center $ vLimit 22 $ hLimit 70 $ withBorderStyle BS.unicodeBold $
-    B.borderWithLabel (str "CSE230 Presents") $ C.center $
+    B.borderWithLabel (str " CSE230 Presents ") $ C.center $
     vBox [ C.hCenter $
             vBox[
             padTop (Pad 1) $ C.hCenter $ str "Top 10",
