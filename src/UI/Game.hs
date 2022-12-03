@@ -17,6 +17,7 @@ import Brick
     customMain,
     emptyWidget,
     fg,
+    bg,
     hBox,
     hLimit,
     halt,
@@ -140,7 +141,7 @@ handleEvent g _ = continue g
 
 drawUI :: Game -> [Widget Name]
 drawUI g =
-  [ C.hCenter $
+  [ withAttr globalAttr $ C.hCenter $
       C.vCenter $
         hBox
           [ padLeft (Pad 20) $ drawGrid g,
@@ -323,21 +324,27 @@ buffw = str "DF"
 bulletw :: Widget Name
 bulletw = str "• "
 
+bgColor = V.rgbColor 224 226 226
+
 theMap :: AttrMap
 theMap =
   attrMap
-    V.defAttr
-    [ (playerAttr, V.blue `on` V.blue),
-      (noticeStringAttr, fg V.red `V.withStyle` V.bold),
-      (pureBricksAttr, V.white `on` V.white),
-      (mBricksAttr, V.cyan `on` V.cyan),
+    defAttr
+    [ (playerAttr, bg $ V.rgbColor 169 158 171),
+      (noticeStringAttr, V.red `on` bgColor `V.withStyle` V.bold),
+      (pureBricksAttr, bg $ V.rgbColor 220 191 202),
+      (mBricksAttr, bg $ V.rgbColor 208 138 137),
       (hardBricksAttr, V.yellow `on` V.yellow),
-      (ballsAttr, fg V.red `V.withStyle` V.bold),
+      (ballsAttr, V.rgbColor 96 87 110 `on` bgColor),
       (timeBarAttr, V.black `on` V.blue),
-      (fireBallBuffAttr, V.green `on` V.green),
-      (fireBallAttr, fg V.magenta `V.withStyle` V.bold),
-      (bulletAttr, fg V.brightRed `V.withStyle` V.bold)
+      (fireBallBuffAttr, bg $ V.rgbColor 178 206 254),
+      (fireBallAttr, V.rgbColor 243 228 161 `on` bgColor),
+      (bulletAttr, fg V.brightRed `V.withStyle` V.bold),
+      (emptyAttr, bg bgColor),
+      (globalAttr, bg bgColor)
     ]
+
+defAttr = bg bgColor
 
 noticeStringAttr :: AttrName
 noticeStringAttr = "noticeString"
@@ -371,3 +378,6 @@ fireBallAttr = "fireBall"
 
 bulletAttr :: AttrName
 bulletAttr = "bullet"
+
+globalAttr :: AttrName 
+globalAttr = "global"

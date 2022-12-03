@@ -136,9 +136,9 @@ reward = 10
 -- split buff will be void if max balls are reached.
 maxBalls = 3
 
-scheduleFire = [20 + i * 150 | i <- [0 .. 20]]
+scheduleFire = [20 + i * 100 | i <- [0 .. 20]]
 
-scheduleSplit = [80 + i * 200 | i <- [0 .. 20]]
+scheduleSplit = [0 + i * 100 | i <- [0 .. 20]]
 
 -------------------------------------------------------------------------------
 
