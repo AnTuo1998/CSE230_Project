@@ -66,3 +66,11 @@ Alice 110
 Alice 130
 Alice 980
 Alice 500
+Alice 560
+Alice 410
+Alice 380
+Alice 540
+Alice 540
+Alice 540
+Alice 540
+Alice 540

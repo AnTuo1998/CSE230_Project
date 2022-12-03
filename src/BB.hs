@@ -106,7 +106,9 @@ data Game = Game
     _highestScore :: Int,
     -- | the fireball buff
     _fireCountDown :: Int,
-    _playNextLevel :: Bool
+    _playNextLevel :: Bool,
+    _scheduleFire :: [Int],
+    _scheduleSplit :: [Int]
   }
   deriving (Eq, Show)
 
@@ -136,9 +138,9 @@ reward = 10
 -- split buff will be void if max balls are reached.
 maxBalls = 3
 
-scheduleFire = [20 + i * 100 | i <- [0 .. 20]]
+scheduleFireInit = [1 + i * 70 | i <- [0 .. 20]]
 
-scheduleSplit = [0 + i * 100 | i <- [0 .. 20]]
+scheduleSplitInit = [35 + i * 70 | i <- [0 .. 20]]
 
 -------------------------------------------------------------------------------
 
@@ -156,7 +158,8 @@ step :: Game -> Game
 step g = if g ^. status == Playing then stepHelper g else g
 
 stepHelper :: Game -> Game
-stepHelper = setGameWin . setGameOver . anotherChance . updateLifeCount . moveBuffs . actBuffs . clearBall . hitBricks . fireHit . hitBricksWithBullets . bounceWalls . runBalls . runBullets . advanceTime . expireBuff
+stepHelper = setGameWin . setGameOver . anotherChance . updateLifeCount . moveBuffs . actBuffs . clearBall . 
+  hitBricks . fireHit . hitBricksWithBullets . bounceWalls . runBalls . runBullets . advanceTime . expireBuff
 
 advanceTime :: Game -> Game
 advanceTime g = g & progress .~ g ^. progress + 1
@@ -221,7 +224,9 @@ initGame initConf =
         _lifeCount = 3,
         _totalLifeCount = 3,
         _fireCountDown = 0,
-        _playNextLevel = False
+        _playNextLevel = False,
+        _scheduleFire = scheduleFireInit,
+        _scheduleSplit = scheduleSplitInit
       }
 
 -------------------------------------------------------------------------------
@@ -414,13 +419,13 @@ bounceWallsVert b =
    in if (y >= height - 1) && b ^. vDir == North then oppositeBallVert b else b
 
 hitBricks :: Game -> Game
-hitBricks g = g & balls .~ newBalls & score .~ newScore & pureBricks .~ filteredNewBricks & buffs %~ joinSeq newBuff
+hitBricks g = newBuffedGame & balls .~ newBalls & score .~ newScore & pureBricks .~ filteredNewBricks 
   where
     results = fmap (bouncePureBricks (g ^. pureBricks)) (g ^. balls)
     newBalls = if g ^. fireCountDown > 0 then g ^. balls else fmap sel1 results
     newScore = foldl (+) (g ^. score) (fmap sel3 results)
     bricksHit = S.filter (/= emptyBrick) (fmap sel2 results)
-    newBuff = if null bricksToDelete then S.empty else dropBuff g (head $ toList bricksToDelete)
+    newBuffedGame = if null bricksToDelete then g else dropBuff g (head $ toList bricksToDelete)
     newBricks = fmap (\b -> if b `elem` bricksHit then b & brickLife %~ (subtract 1) else b) (g ^. pureBricks)
     bricksToDelete = S.filter (\b -> b ^. brickLife < 0) newBricks
     filteredNewBricks = S.filter (`notElem` bricksToDelete) newBricks
@@ -463,13 +468,17 @@ joinSeq :: Seq a -> Seq a -> Seq a
 joinSeq x y = S.fromList $ toList x ++ toList y
 
 -- following a fixed schedule (can be made random)
-dropBuff :: Game -> BrickState -> Seq BuffState
-dropBuff g brick = newBuff
+dropBuff :: Game -> BrickState -> Game
+dropBuff g brick = g & buffs %~ joinSeq newBuff & scheduleFire .~ newFireSchedule & scheduleSplit .~ newSplitSchedule
   where
     newBuff = S.empty `joinSeq` newFireBall `joinSeq` newSplit
-    newFireBall = if g ^. score `elem` scheduleFire then newBuffFac dropCoord FireBall else S.fromList []
-    newSplit = if g ^. score `elem` scheduleSplit then newBuffFac dropCoord Split else S.fromList []
+    newFireBall = if g ^. progress > head oldFireSchedule then newBuffFac dropCoord FireBall else S.fromList []
+    newSplit = if g ^. progress > head oldSplitSchedule then newBuffFac dropCoord Split else S.fromList []
     dropCoord = moveCoord (div brickLen 2) East (brick ^. brickCoord)
+    newFireSchedule = if g ^. progress > head oldFireSchedule then drop 1 oldFireSchedule else oldFireSchedule
+    newSplitSchedule = if g ^. progress > head oldSplitSchedule then drop 1 oldSplitSchedule else oldSplitSchedule
+    oldFireSchedule = g^. scheduleFire
+    oldSplitSchedule = g^. scheduleSplit
 
 moveBuffs :: Game -> Game
 moveBuffs g = if g ^. progress `mod` 3 == 0 then g & buffs .~ newBuffs else g
@@ -541,13 +550,13 @@ bouncePureBricksWithBullets bricks bullet =
         Just (bullet', brick) -> (bullet', brick, reward)
 
 hitBricksWithBullets :: Game -> Game
-hitBricksWithBullets g = g & bullets .~ newBullets & score .~ newScore & pureBricks .~ filteredNewBricks & buffs %~ joinSeq newBuff
+hitBricksWithBullets g = newBuffedGame & bullets .~ newBullets & score .~ newScore & pureBricks .~ filteredNewBricks
   where
     results = fmap (bouncePureBricksWithBullets (g ^. pureBricks)) (g ^. bullets)
     newBullets = fmap sel1 (S.filter (\x -> sel3 x == 0) results)
     newScore = foldl (+) (g ^. score) (fmap sel3 results)
     bricksHit = S.filter (/= emptyBrick) (fmap sel2 results)
-    newBuff = if null bricksToDelete then S.empty else dropBuff g (head $ toList bricksToDelete)
+    newBuffedGame = if null bricksToDelete then g else dropBuff g (head $ toList bricksToDelete)
     newBricks = fmap (\b -> if b `elem` bricksHit then b & brickLife %~ subtract 1 else b) (g ^. pureBricks)
     bricksToDelete = S.filter (\b -> b ^. brickLife < 0) newBricks
     filteredNewBricks = S.filter (`notElem` bricksToDelete) newBricks
