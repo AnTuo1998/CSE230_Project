@@ -238,7 +238,7 @@ drawInstr g = hLimit 30
 drawGrid :: Game -> Widget Name
 drawGrid g =
   withBorderStyle BS.unicodeBold $
-    B.borderWithLabel (str $ " 🌀🌀Level " ++ (show $ g ^. level) ++ "🌀🌀 ") $
+    B.borderWithLabel (str $ " Level " ++ (show $ g ^. level) ++ " ") $
       vBox rows
   where
     rows = [hBox $ cellsInRow r | r <- [height -1, height -2 .. 0]]
@@ -335,10 +335,10 @@ firebuffw :: Widget Name
 firebuffw = str "🔥"
 
 splitbuffw :: Widget Name
-splitbuffw = str "💕"
+splitbuffw = str "💖"
 
 bulletw :: Widget Name
-bulletw = str "• "
+bulletw = str "💣"
 
 theMap :: AttrMap
 theMap =
