@@ -3,6 +3,8 @@
 module UI.Game (playGame) where
 
 import BB
+
+import qualified Graphics.Vty.Image.Internal as VI (Image (HorizText))
 import Brick
   ( App (..),
     AttrMap,
@@ -83,7 +85,7 @@ data Tick = Tick
 -- | Named resources
 type Name = ()
 
-data Cell = Player | Empty | Ball | PureBrick | MultiLifeBrick | HardBrick | FireBallBuff | FireBall_ | Bullet
+data Cell = Player | Empty | Ball | PureBrick | MultiLifeBrick | HardBrick | FireBallBuff | SplitBuff | FireBall_ | Bullet
 
 -- constants
 
@@ -110,7 +112,8 @@ playGame initConf = do
       writeBChan chan Tick
       threadDelay $ initConf ^. initTickInterval
   initG <- initGame initConf
-  let builder = V.mkVty V.defaultConfig
+  cfg <- V.parseConfigFile "vty.config"
+  let builder = V.mkVty cfg
   initialVty <- builder
   customMain initialVty builder (Just chan) app initG
 
@@ -235,19 +238,20 @@ drawInstr g = hLimit 30
 drawGrid :: Game -> Widget Name
 drawGrid g =
   withBorderStyle BS.unicodeBold $
-    B.borderWithLabel (str $ " Level " ++ (show $ g ^. level) ++ " ") $
+    B.borderWithLabel (str $ " 🌀🌀Level " ++ (show $ g ^. level) ++ "🌀🌀 ") $
       vBox rows
   where
     rows = [hBox $ cellsInRow r | r <- [height -1, height -2 .. 0]]
     cellsInRow y = [drawCoord (V2 x y) | x <- [0 .. width -1]]
     drawCoord = drawCell . cellAt
     cellAt c@(V2 x y)
-      | c `elem` buffsToCoords (g ^. buffs) = FireBallBuff
       | y == 0 && withinPlayer c (g ^. player) = Player
+      | c `elem` ballsToCoords (g ^. balls) = if g ^. fireCountDown > 0 then FireBall_ else Ball
+      | foldl (||) False (fmap (isFireBuff c) (g ^. buffs)) = FireBallBuff
+      | foldl (||) False (fmap (isSplitBuff c) (g ^. buffs)) = SplitBuff
       | foldl (||) False (fmap (isSingleLifeBrick c) (g ^. pureBricks)) = PureBrick
       | foldl (||) False (fmap (isMultiLifeBrick c) (g ^. pureBricks)) = MultiLifeBrick
       | foldl (||) False (fmap (isBrick c . (^. brickCoord)) (g ^. hardBricks)) = HardBrick
-      | c `elem` ballsToCoords (g ^. balls) = if g ^. fireCountDown > 0 then FireBall_ else Ball
       | c `elem` ballsToCoords (g ^. bullets) = Bullet
       | otherwise = Empty
 
@@ -258,6 +262,12 @@ isMultiLifeBrick c b = isBrick c (b^.brickCoord) && (b^.isMultiLife)
 
 isSingleLifeBrick :: V2 Int -> BrickState -> Bool
 isSingleLifeBrick c b = isBrick c (b^.brickCoord) && (not $ b^.isMultiLife)
+
+isFireBuff :: V2 Int -> BuffState  -> Bool
+isFireBuff c b = (==) c (b^.buffCoord) && (b^.buffT == FireBall)
+
+isSplitBuff :: V2 Int -> BuffState  -> Bool
+isSplitBuff c b = (==) c (b^.buffCoord) && (b^.buffT == Split)
 
 ballsToCoords :: Seq BallState -> Seq (V2 Int)
 ballsToCoords = fmap f
@@ -292,7 +302,9 @@ drawCell Ball = withAttr ballsAttr ballw
 drawCell PureBrick = withAttr pureBricksAttr cw
 drawCell MultiLifeBrick = withAttr mBricksAttr cw
 drawCell HardBrick = withAttr hardBricksAttr cw
-drawCell FireBallBuff = withAttr fireBallBuffAttr cw
+drawCell FireBallBuff = withAttr fireBallBuffAttr firebuffw
+drawCell SplitBuff = withAttr splitBallBuffAttr splitbuffw
+
 drawCell FireBall_ = withAttr fireBallAttr ballw
 drawCell Bullet = withAttr bulletAttr bulletw
 
@@ -319,8 +331,11 @@ cw = str "  "
 ballw :: Widget Name
 ballw = str "⬤ "
 
-buffw :: Widget Name
-buffw = str "DF"
+firebuffw :: Widget Name
+firebuffw = str "🔥"
+
+splitbuffw :: Widget Name
+splitbuffw = str "💕"
 
 bulletw :: Widget Name
 bulletw = str "• "
@@ -336,7 +351,9 @@ theMap =
       (hardBricksAttr, V.yellow `on` V.yellow),
       (ballsAttr, V.rgbColor 96 87 110 `on` bgColor),
       (timeBarAttr, V.rgbColor 209 209 209 `on` V.rgbColor 113 151 195),
-      (fireBallBuffAttr, bg $ V.rgbColor 178 206 254),
+      (fireBallBuffAttr, bg $ V.rgbColor 251 111 80),
+      (splitBallBuffAttr, bg $ V.rgbColor 251 111 80),
+      -- (fireBallBuffAttr, bg bgColor),
       (fireBallAttr, V.rgbColor 218 177 222 `on` bgColor),
       (bulletAttr, fg V.brightRed `V.withStyle` V.bold),
       (emptyAttr, bg bgColor),
@@ -369,6 +386,8 @@ timeBarAttr = "timeBar"
 
 fireBallBuffAttr :: AttrName
 fireBallBuffAttr = "fireBallBuff"
+
+splitBallBuffAttr = "splitBallBuff"
 
 fireBallAttr :: AttrName
 fireBallAttr = "fireBall"
