@@ -5,6 +5,8 @@ stack build
 stack exec BB
 ```
 
+Emoji is supported for tmux and xterm based terminals (e.g. iTerm, mac Terminal...).
+
 # Test
 
 ```
