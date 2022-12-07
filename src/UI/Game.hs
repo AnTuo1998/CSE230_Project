@@ -103,7 +103,6 @@ app =
       appAttrMap = const theMap
     }
 
---todo: wrap init config into a class
 playGame :: InitConfig -> IO Game
 playGame initConf = do
   chan <- newBChan 10
@@ -130,7 +129,6 @@ handleEvent g (VtyEvent (V.EvKey (V.KChar ' ') [])) = continue (if g ^. status =
 handleEvent g (VtyEvent V.EvLostFocus) = continue $ pause g
 handleEvent g (VtyEvent (V.EvMouseDown c r button mods)) = halt g
 handleEvent g (VtyEvent (V.EvKey V.KEsc [])) = halt g
--- handleEvent g (VtyEvent (V.EvKey (V.KChar 'p') [])) = continue $ pause g
 handleEvent g (VtyEvent (V.EvKey (V.KChar 'p') [])) =
   continue
     ( case g ^. status of
@@ -160,18 +158,8 @@ drawInfoBoard g =
       [ drawStats g,
         padTop (Pad 3) drawHelp,
         padTop (Pad 3) $ drawInstr g
-        -- padTop (Pad 3) $ drawTimeBar g
       ]
 
--- drawStats :: Game -> Widget Name
--- drawStats g =
---   hLimit 30 $
---     vBox
---       [ drawHighestScore (g ^. highestScore),
---         padTop (Pad 2) $ drawScore (g ^. score),
---         padTop (Pad 2) $ drawLifeCount $ g ^. lifeCount,
---         padTop (Pad 2) $ drawGameStatus $ g ^. status
---       ]
 
 drawStats :: Game -> Widget Name
 drawStats g = hLimit 30
@@ -181,13 +169,8 @@ drawStats g = hLimit 30
       [ drawHighestScore $ g ^. highestScore,
         padTop (Pad 1) $ drawScore $ g ^. score,
         padTop (Pad 1) $ drawLifeCount (g ^. lifeCount) $ g ^. totalLifeCount
-        -- padTop (Pad 1) $ padLeftRight 1 $ drawGameStatus $ g ^. status
       ]
-      -- [ padLeftRight 1 $ drawHighestScore (g ^. highestScore),
-      --   padLeftRight 1 $ drawScore (g ^. score),
-      --   padLeftRight 1 $ drawLifeCount $ g ^. lifeCount,
-      --   padLeftRight 1 $ drawGameStatus $ g ^. status
-      -- ]
+
 
 
 drawStat :: String -> String -> Widget Name
@@ -196,17 +179,13 @@ drawStat item stat = padLeftRight 1
                     $ str item <+> padLeft Max (str stat)
 
 drawScore :: Int -> Widget Name
--- drawScore n = withAttr noticeStringAttr $ str $ "score:" ++ show n
 drawScore n = drawStat "score:" $ show n
 
 
 drawHighestScore :: Int -> Widget Name
--- drawHighestScore n = withAttr noticeStringAttr $ str $ "highest:" ++ show n
 drawHighestScore n = drawStat "highest:" $ show n
 
 drawLifeCount :: Int -> Int -> Widget Name
--- drawLifeCount n = withAttr noticeStringAttr $ str $ "♥:" ++ show n
--- drawLifeCount n = withAttr noticeStringAttr $ str $ "life:" ++ take (n+1) (repeat '♥')
 drawLifeCount n a = drawStat "life:" $ replicate n '♥' ++ replicate (a - n) '♡'
 
 drawGameStatus :: GameStatus -> Widget Name
@@ -314,7 +293,6 @@ drawHelp = hLimit 30
     $ B.borderWithLabel (str " Help ")
     $ vBox
     $ map
-        -- (\a -> withAttr noticeStringAttr $ C.hCenter $ str $ sel1 a ++ sel2 a)
         (\a -> drawStat (sel1 a) (sel2 a))
         [ ("Move Left: ", "←"),
           ("Move Right: ", "→"),
@@ -353,7 +331,6 @@ theMap =
       (timeBarAttr, V.rgbColor 209 209 209 `on` V.rgbColor 113 151 195),
       (fireBallBuffAttr, bg $ V.rgbColor 251 111 80),
       (splitBallBuffAttr, bg $ V.rgbColor 251 111 80),
-      -- (fireBallBuffAttr, bg bgColor),
       (fireBallAttr, V.rgbColor 218 177 222 `on` bgColor),
       (bulletAttr, fg V.brightRed `V.withStyle` V.bold),
       (emptyAttr, bg bgColor),

@@ -241,7 +241,6 @@ bouncePlayer player b =
       d2 = b ^. vDir
    in if y == 1 && d2 == South && withinPlayer (b ^. ballCoord) player then oppositeBallVert b else b
 
--- TODO: x + playerLen <= or < width
 isPlayerInBound :: Coord -> Bool
 isPlayerInBound (V2 x _) = 0 <= x && x + playerLen <= width
 
@@ -321,7 +320,6 @@ isInside brick bst =
     by = bst ^. ballCoord . _y
     bx = bst ^. ballCoord . _x
 
--- todo: change this to a 1-liner like foldl
 batchCheck :: (BrickState -> BallState -> Maybe (BallState, BrickState)) -> Seq BrickState -> BallState -> Maybe (BallState, BrickState)
 batchCheck f S.Empty _ = Nothing
 batchCheck f (bricks :|> brick) ball =
@@ -336,7 +334,6 @@ bounceBricks bricks ball =
   batchCheck (\a b -> isHittingVert a b <|> isHittingHori a b) bricks ball
     <|> batchCheck isHittingDiag bricks ball
 
--- todo: merge this into bouncePureBricks
 bounceHardBricks :: Seq BrickState -> BallState -> BallState
 bounceHardBricks bricks ball =
   let ret = bounceBricks bricks ball
