@@ -1,3 +1,7 @@
+# *22Fall CSE230 Project*: Brick Breaker Game
+
+**Group Member**: Hanlin Teng, Spencer Du, Wenzao Cui, Yunshu Zhou
+
 # Build
 
 ```
@@ -7,15 +11,13 @@ stack exec BB
 
 Emoji is supported for tmux and xterm based terminals (e.g. iTerm, mac Terminal...).
 
+Please switch to `dev` branch (an emoji-free version) if you're using a terminal other than the above mentioned. 
+
 # Test
 
 ```
 stack test
 ```
-
-# *22Fall CSE230 Project*: Brick Breaker Game
-
-**Group Member**: Hanlin Teng, Spencer Du, Wenzao Cui, Yunshu Zhou
 
 ## Milestone: Updates
 
